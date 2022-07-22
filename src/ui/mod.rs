@@ -1,4 +1,5 @@
-use iced::{Application, Settings};
+use iced::Settings;
+use iced::pure::Application;
 use iced::window::{Settings as Window, Icon};
 use image::load_from_memory;
 
@@ -33,6 +34,7 @@ fn settings() -> Settings<()> {
     let icon = load_from_memory(ICON).unwrap();
 
     Settings {
+        id: None,
         window: Window {
             size: (1300, 700),
             min_size: Some((1000, 500)),
@@ -46,5 +48,7 @@ fn settings() -> Settings<()> {
         default_text_size: 20,
         exit_on_close_request: true,
         antialiasing: true,
+        text_multithreading: true,
+        try_opengles_first: false
     }
 }

@@ -1,4 +1,6 @@
-use iced::{Align, button, Button, Column, Container, Element, Length, Row, Space, Text};
+use iced::{Length, Alignment};
+use iced::pure::Element;
+use iced::pure::widget::{Button, Container, Column, Row, Space, Text};
 use serde_json::Value;
 
 use crate::Data;
@@ -85,7 +87,6 @@ pub struct Gpu {
     pub load: GpuLoad,
     pub memory: GpuMemory,
     pub clock: GpuClock,
-    pub nav_state: button::State,
     load_graph: StatChart
 }
 
@@ -99,7 +100,6 @@ impl Gpu {
             load: GpuLoad::default(),
             memory: GpuMemory::default(),
             clock: GpuClock::default(),
-            nav_state: button::State::default(),
             load_graph: StatChart::new((255, 190, 125), Size::Small)
         }
     }
@@ -163,8 +163,8 @@ impl Gpu {
         }
     }
 
-    pub fn view(&mut self) -> (Element<Message>, Element<Message>) {
-        let small = Button::new(&mut self.nav_state, Row::new().align_items(Align::Center)
+    pub fn view(&self) -> (Element<Message>, Element<Message>) {
+        let small = Button::new(Row::new().align_items(Alignment::Center)
             .push(Space::new(Length::Units(5), Length::Shrink))
             .push(
                 Container::new(
@@ -189,7 +189,7 @@ impl Gpu {
 
         let large = Column::new().padding(20)
             .push(
-                Row::new().align_items(Align::Center).height(Length::Units(30))
+                Row::new().align_items(Alignment::Center).height(Length::Units(30))
                     .push(Text::new("GPU").size(28))
                     .push(Space::new(Length::Fill, Length::Shrink))
                     .push(Text::new(&self.name))

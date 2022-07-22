@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
 
 use chrono::{DateTime, Utc};
-use iced::{Element, Length};
+use iced::Length;
+use iced::pure::Element;
 use plotters::prelude::*;
 use plotters_backend::DrawingBackend;
 use plotters_iced::{Chart, ChartWidget};
@@ -44,8 +45,8 @@ impl StatChart {
 
     }
 
-    pub fn view(&mut self) -> Element<Message> {
-        let chart = ChartWidget::new(self)
+    pub fn view(&self) -> Element<Message> {
+        let chart = ChartWidget::new(self.clone())
             .width(Length::Fill)
             .height(Length::Fill);
 

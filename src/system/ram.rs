@@ -1,4 +1,6 @@
-use iced::{Align, button, Button, Column, Container, Element, Length, Row, Space, Text};
+use iced::{Alignment, Length};
+use iced::pure::Element;
+use iced::pure::widget::{Button, Column, Container, Row, Space, Text};
 use serde_json::Value;
 
 use crate::Data;
@@ -10,7 +12,6 @@ pub struct Ram {
     pub used: Data,
     pub available: Data,
     pub total: f32,
-    pub nav_state: button::State,
     load_graph: StatChart
 }
 
@@ -21,7 +22,6 @@ impl Ram {
             used: Data::default(),
             available: Data::default(),
             total: 0.0,
-            nav_state: button::State::default(),
             load_graph: StatChart::new((183, 53, 90), Size::Small)
         }
     }
@@ -67,8 +67,8 @@ impl Ram {
         self.total = self.used.current + self.available.current;
     }
 
-    pub fn view(&mut self) -> (Element<Message>, Element<Message>) {
-        let small = Button::new(&mut self.nav_state, Row::new().align_items(Align::Center)
+    pub fn view(&self) -> (Element<Message>, Element<Message>) {
+        let small = Button::new(Row::new().align_items(Alignment::Center)
             .push(Space::new(Length::Units(5), Length::Shrink))
             .push(
                 Container::new(
@@ -92,7 +92,7 @@ impl Ram {
 
         let large = Column::new().padding(20)
             .push(
-                Row::new().align_items(Align::Center).height(Length::Units(30))
+                Row::new().align_items(Alignment::Center).height(Length::Units(30))
                     .push(Text::new("RAM").size(28))
             )
             .push(Space::new(Length::Shrink, Length::Units(20)))

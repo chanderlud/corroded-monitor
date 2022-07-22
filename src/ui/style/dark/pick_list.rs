@@ -18,6 +18,7 @@ impl pick_list::StyleSheet for PickList {
     fn active(&self) -> Style {
         Style {
             text_color: Color::WHITE.into(),
+            placeholder_color: Default::default(),
             background: Color::TRANSPARENT.into(),
             border_radius: 4.0,
             border_width: 0.0,
@@ -29,6 +30,7 @@ impl pick_list::StyleSheet for PickList {
     fn hovered(&self) -> Style {
         Style {
             text_color: Color::WHITE.into(),
+            placeholder_color: Default::default(),
             background: Color::TRANSPARENT.into(),
             border_radius: 4.0,
             border_width: 0.0,

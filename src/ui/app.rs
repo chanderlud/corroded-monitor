@@ -1,4 +1,6 @@
-use iced::{Application, Clipboard, Column, Command, Container, Element, executor, Length, Row, Subscription};
+use iced::{Command, executor, Length, Subscription};
+use iced::pure::{Application, Element};
+use iced::pure::widget::{Column, Container, Row};
 
 use crate::SystemStats;
 use crate::ui::{Message, Route, style};
@@ -30,7 +32,7 @@ impl Application for App {
         "Corroded Monitor".to_string()
     }
 
-    fn update(&mut self, message: Self::Message, _clipboard: &mut Clipboard) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::Update => Command::perform(self.stats.clone().update(), Message::Result),
             Message::Result(s) => { self.stats = s; Command::none() },
@@ -43,7 +45,7 @@ impl Application for App {
         iced::time::every(std::time::Duration::from_millis(1000 as u64)).map(|_| Message::Update)
     }
 
-    fn view(&mut self) -> Element<'_, Self::Message> {
+    fn view(&self) -> Element<'_, Self::Message> {
         let (cpu_small, cpu_large) = self.stats.cpu.view();
         let (gpu_small, gpu_large) = self.stats.gpu.view();
         let (ram_small, ram_large) = self.stats.ram.view();

@@ -76,9 +76,9 @@ impl SystemStats {
 }
 
 fn main() {
-    std::process::Command::new(format!("{}\\ohm\\OpenHardwareMonitor.exe", std::env::current_dir().unwrap().to_str().unwrap()))
-        .spawn()
-        .expect("failed to run");
+    //std::process::Command::new(format!("{}\\ohm\\OpenHardwareMonitor.exe", std::env::current_dir().unwrap().to_str().unwrap()))
+    //    .spawn()
+    //    .expect("failed to run");
 
     let r = ui::main();
 
