@@ -16,7 +16,8 @@ pub enum Message {
     Update,
     Result(SystemStats),
     Navigate(Route),
-    PickChanged(crate::system::cpu::GraphState)
+    CpuPickChanged(crate::system::cpu::GraphState),
+    GpuPickChanged(crate::system::gpu::GraphState)
 }
 
 #[derive(Debug, Clone)]

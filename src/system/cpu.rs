@@ -81,7 +81,7 @@ pub struct Cpu {
     pub average_frequency: f32,
     pub average_power: f32,
     pub average_load: f32,
-    pub graph_state: Option<GraphState>,
+    pub graph_state: GraphState,
     load_graph: StatChart
 }
 
@@ -101,19 +101,17 @@ impl Cpu {
             average_frequency: 0.0,
             average_power: 0.0,
             average_load: 0.0,
-            graph_state: Some(GraphState::Utilization),
+            graph_state: GraphState::Utilization,
             load_graph: StatChart::new((0, 255, 255), Size::Small)
         }
     }
 
-    pub fn update(mut self, data: &Value) -> Self {
+    pub fn update(&mut self, data: &Value) {
         self.data_parser(data);
 
         self.calculate_totals();
         self.calculate_maximums();
         self.calculate_averages();
-
-        self
     }
 
     fn data_parser(&mut self, data: &Value) {
@@ -199,7 +197,7 @@ impl Cpu {
         let core_count = self.cores.len();
         let c = calculate_rows(core_count);
 
-        let graphs = match self.graph_state.unwrap() {
+        let graphs = match self.graph_state {
             GraphState::Utilization => self.cores.iter().map(|c| Element::new(Container::new(c.load_graph.view()).style(style::Container::Chart((0, 255, 255))).width(Length::FillPortion(1)).height(Length::FillPortion(1)))).collect::<Vec<Element<Message>>>(),
             GraphState::Temperature => self.cores.iter().map(|c| Element::new(Container::new(c.temperature_graph.view()).style(style::Container::Chart((183, 53, 90))).width(Length::FillPortion(1)).height(Length::FillPortion(1)))).collect::<Vec<Element<Message>>>(),
             GraphState::Frequency => self.cores.iter().map(|c| Element::new(Container::new(c.frequency_graph.view()).style(style::Container::Chart((255, 190, 125))).width(Length::FillPortion(1)).height(Length::FillPortion(1)))).collect::<Vec<Element<Message>>>()
@@ -249,7 +247,7 @@ impl Cpu {
                 Row::new().align_items(Alignment::Center).height(Length::Units(30))
                     .push(Text::new("CPU").size(28))
                     .push(Space::new(Length::Units(20), Length::Shrink))
-                    .push(PickList::new(&GraphState::ALL[..], self.graph_state, Message::PickChanged).style(style::PickList::Main))
+                    .push(PickList::new(&GraphState::ALL[..], Some(self.graph_state), Message::CpuPickChanged).style(style::PickList::Main))
                     .push(Space::new(Length::Fill, Length::Shrink))
                     .push(Text::new(&self.name))
             )
@@ -259,7 +257,7 @@ impl Cpu {
                     .spacing(5)
                     .width(Length::Fill)
                     .push(Text::new(
-                        match self.graph_state.unwrap() {
+                        match self.graph_state {
                             GraphState::Utilization => "Utilization (0-100%)".to_string(),
                             GraphState::Frequency => "Core Frequency".to_string(),
                             GraphState::Temperature => "Temperature".to_string(),

@@ -1,6 +1,7 @@
 use iced::{Command, executor, Length, Subscription};
 use iced::pure::{Application, Element};
 use iced::pure::widget::{Column, Container, Row};
+use crate::gpu::GraphState;
 
 use crate::SystemStats;
 use crate::ui::{Message, Route, style};
@@ -37,7 +38,18 @@ impl Application for App {
             Message::Update => Command::perform(self.stats.clone().update(), Message::Result),
             Message::Result(s) => { self.stats = s; Command::none() },
             Message::Navigate(r) => { self.route = r; Command::none() },
-            Message::PickChanged(v) => { self.stats.cpu.graph_state = Some(v); Command::none() }
+            Message::CpuPickChanged(v) => { self.stats.cpu.graph_state = v; Command::none() },
+            Message::GpuPickChanged(v) => {
+                if GraphState::REGION_ONE.contains(&v) {
+                    self.stats.gpu.graph_state_1 = v;
+                } else if GraphState::REGION_TWO.contains(&v) {
+                    self.stats.gpu.graph_state_2 = v;
+                } else {
+                    self.stats.gpu.graph_state_3 = v;
+                }
+
+                Command::none()
+            }
         }
     }
 

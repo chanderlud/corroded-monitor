@@ -26,10 +26,8 @@ impl Ram {
         }
     }
 
-    pub fn update(mut self, data: &Value) -> Self {
+    pub fn update(&mut self, data: &Value) {
         self.data_parser(data);
-
-        self
     }
 
     fn data_parser(&mut self, data: &Value) {

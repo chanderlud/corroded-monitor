@@ -62,15 +62,27 @@ impl SystemStats {
     async fn update(mut self) -> Self {
         let data = self.get_data().await;
 
-        self.cpu = self.cpu.update(&data);
-        self.gpu = self.gpu.update(&data);
-        self.ram = self.ram.update(&data);
+        match data {
+            Ok(data) => {
+                self.cpu.update(&data);
+                self.gpu.update(&data);
+                self.ram.update(&data);
+            }
+            Err(e) => {
+                println!("an error occurred while fetching data from OHM API: {}", e)
+            }
+        }
 
         self
     }
 
-    async fn get_data(&self) -> Value {
-        self.client.get("http://127.0.0.1:8085/data.json").send().await.unwrap().json().await.unwrap()
+    async fn get_data(&self) -> Result<Value, reqwest::Error> {
+        Ok(
+            self.client
+                .get("http://127.0.0.1:8085/data.json")
+                .send().await?
+                .json().await?
+        )
     }
 
 }
@@ -84,6 +96,6 @@ fn main() {
 
     match r {
         Ok(_) => {}
-        Err(e) => { println!("An error occured: {:?}", e); std::thread::sleep(std::time::Duration::from_secs(60)); }
+        Err(e) => { println!("An error occurred: {:?}", e); std::thread::sleep(std::time::Duration::from_secs(60)); }
     }
 }
