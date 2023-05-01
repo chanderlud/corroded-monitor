@@ -9,7 +9,7 @@ use system::{cpu, gpu, ram};
 
 #[derive(Debug, Clone)]
 pub struct Data {
-    minimum: f32,
+    // minimum: f32,
     maximum: f32,
     current: f32
 }
@@ -17,7 +17,7 @@ pub struct Data {
 impl Data {
     pub fn from_value(value: &Value) -> Self {
         Self {
-            minimum: strip_label(value["Min"].as_str().unwrap()),
+            // minimum: strip_label(value["Min"].as_str().unwrap()),
             maximum: strip_label(value["Max"].as_str().unwrap()),
             current: strip_label(value["Value"].as_str().unwrap())
         }
@@ -25,7 +25,7 @@ impl Data {
     
     pub fn default() -> Self {
         Self {
-            minimum: 0.0,
+            // minimum: 0.0,
             maximum: 0.0,
             current: 0.0
         }

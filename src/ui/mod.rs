@@ -1,6 +1,7 @@
 use iced::Settings;
-use iced::pure::Application;
-use iced::window::{Settings as Window, Icon};
+use iced::Application;
+use iced::window::Settings as Window;
+use iced::window::icon::from_rgba;
 use image::load_from_memory;
 
 use crate::SystemStats;
@@ -41,12 +42,12 @@ fn settings() -> Settings<()> {
             min_size: Some((1000, 500)),
             resizable: true,
             decorations: true,
-            icon: Some(Icon::from_rgba(icon.to_rgba8().into_raw(), 32, 32).unwrap()),
+            icon: Some(from_rgba(icon.to_rgba8().into_raw(), 32, 32).unwrap()),
             ..Default::default()
         },
         flags: (),
         default_font: None,
-        default_text_size: 20,
+        default_text_size: 20.0,
         exit_on_close_request: true,
         antialiasing: true,
         text_multithreading: true,

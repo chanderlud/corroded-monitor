@@ -1,10 +1,15 @@
+use std::rc::Rc;
 use iced::{Length, Alignment};
-use iced::pure::{Element, Widget};
-use iced::pure::widget::{Button, Container, Column, Row, Space, Text, PickList};
+use iced::Element;
+use iced::widget::{Button, Container, Column, Row, Space, Text, PickList};
+use iced_style::theme;
 use serde_json::Value;
 
 use crate::Data;
-use crate::ui::{chart::{StatChart, Size}, Message, Route, style};
+use crate::ui::{chart::{StatChart, Size}, Message, Route};
+use crate::ui::style::buttons::ComponentSelect;
+use crate::ui::style::containers::GraphBox;
+use crate::ui::style::pick_list::PickList as PickListStyle;
 
 #[derive(Debug, Clone)]
 enum DataType {
@@ -271,16 +276,16 @@ impl Gpu {
 
     pub fn view(&self) -> (Element<Message>, Element<Message>) {
         let small = Button::new(Row::new().align_items(Alignment::Center)
-            .push(Space::new(Length::Units(5), Length::Shrink))
+            .push(Space::new(Length::Fixed(5.0), Length::Shrink))
             .push(
                 Container::new(
                     self.load_graph.view()
                 )
-                    .style(style::Container::Chart((255, 190, 125)))
-                    .width(Length::Units(70))
-                    .height(Length::Units(60))
+                    .style(theme::Container::Custom(Box::new(GraphBox { color: (255, 190, 125) })))
+                    .width(Length::Fixed(70.0))
+                    .height(Length::Fixed(60.0))
             )
-            .push(Space::new(Length::Units(10), Length::Shrink))
+            .push(Space::new(Length::Fixed(10.0), Length::Shrink))
             .push(
                 Column::new().spacing(3)
                     .push(Text::new("GPU"))
@@ -289,18 +294,18 @@ impl Gpu {
             )
         )
             .on_press(Message::Navigate(Route::Gpu))
-            .style(style::Button::ComponentSelect)
+            .style(theme::Button::Custom(Box::new(ComponentSelect)))
             .width(Length::Fill)
-            .height(Length::Units(75));
+            .height(Length::Fixed(75.0));
 
         let large = Column::new().padding(20)
             .push(
-                Row::new().align_items(Alignment::Center).height(Length::Units(30))
+                Row::new().align_items(Alignment::Center).height(Length::Fixed(30.0))
                     .push(Text::new("GPU").size(28))
                     .push(Space::new(Length::Fill, Length::Shrink))
                     .push(Text::new(&self.name))
             )
-            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
                 Row::new()
                     .push(
@@ -319,9 +324,9 @@ impl Gpu {
                                 .push(Space::new(Length::Fill, Length::Shrink))
                                 .push(PickList::new(&GraphState::REGION_ONE[..], Some(self.graph_state_1), Message::GpuPickChanged)
                                     .text_size(14)
-                                    .width(Length::Units(120))
+                                    .width(Length::Fixed(120.0))
                                     .padding(0)
-                                    .style(style::PickList::Main)
+                                    .style(theme::PickList::Custom(Rc::new(PickListStyle), Rc::new(PickListStyle)))
                                 )
                                 .width(Length::Fill)
                             )
@@ -336,10 +341,10 @@ impl Gpu {
                                 })
                                     .width(Length::Fill)
                                     .height(Length::Fill)
-                                    .style(style::Container::Chart((255, 190, 125)))
+                                    .style(theme::Container::Custom(Box::new(GraphBox { color: (255, 190, 125) })))
                             )
                     )
-                    .push(Space::new(Length::Units(20), Length::Shrink))
+                    .push(Space::new(Length::Fixed(20.0), Length::Shrink))
                     .push(
                         Column::new()
                             .spacing(5)
@@ -354,9 +359,9 @@ impl Gpu {
                                 .push(Space::new(Length::Fill, Length::Shrink))
                                 .push(PickList::new(&GraphState::REGION_TWO[..], Some(self.graph_state_2), Message::GpuPickChanged)
                                     .text_size(14)
-                                    .width(Length::Units(120))
+                                    .width(Length::Fixed(120.0))
                                     .padding(0)
-                                    .style(style::PickList::Main)
+                                    .style(theme::PickList::Custom(Rc::new(PickListStyle), Rc::new(PickListStyle)))
                                 )
                                 .width(Length::Fill)
                             )
@@ -369,12 +374,12 @@ impl Gpu {
                                 })
                                     .width(Length::Fill)
                                     .height(Length::Fill)
-                                    .style(style::Container::Chart((255, 190, 125)))
+                                    .style(theme::Container::Custom(Box::new(GraphBox { color: (255, 190, 125) })))
                             )
                     )
                     .height(Length::FillPortion(2))
             )
-            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
                 Column::new()
                     .spacing(5)
@@ -390,9 +395,9 @@ impl Gpu {
                         .push(Space::new(Length::Fill, Length::Shrink))
                         .push(PickList::new(&GraphState::REGION_THREE[..], Some(self.graph_state_3), Message::GpuPickChanged)
                             .text_size(14)
-                            .width(Length::Units(90))
+                            .width(Length::Fixed(90.0))
                             .padding(0)
-                            .style(style::PickList::Main)
+                            .style(theme::PickList::Custom(Rc::new(PickListStyle), Rc::new(PickListStyle)))
                         )
                         .width(Length::Fill)
                     )
@@ -405,11 +410,11 @@ impl Gpu {
                         })
                             .width(Length::Fill)
                             .height(Length::Fill)
-                            .style(style::Container::Chart((255, 190, 125)))
+                            .style(theme::Container::Custom(Box::new(GraphBox { color: (255, 190, 125) })))
                     )
 
             )
-            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
                 Row::new()
                     .spacing(20)
@@ -418,12 +423,12 @@ impl Gpu {
                             .push(
                                 Column::new()
                                     .push(Text::new("Core Utilization").size(16))
-                                    .push(Text::new(&format!("{:.0}%", self.load.core.current)).size(24))
+                                    .push(Text::new(format!("{:.0}%", self.load.core.current)).size(24))
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Memory Utilization").size(16))
-                                    .push(Text::new(&format!("{:.0}%", self.load.memory.current)).size(24))
+                                    .push(Text::new(format!("{:.0}%", self.load.memory.current)).size(24))
                             )
                     )
                     .push(
@@ -431,12 +436,12 @@ impl Gpu {
                             .push(
                                 Column::new()
                                     .push(Text::new("Frequency").size(16))
-                                    .push(Text::new(&format!("{:.2} Ghz", self.clock.core.current / 1000.0)).size(24))
+                                    .push(Text::new(format!("{:.2} Ghz", self.clock.core.current / 1000.0)).size(24))
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Frequency").size(16))
-                                    .push(Text::new(&format!("{:.2} Ghz", self.clock.core.maximum / 1000.0)).size(24))
+                                    .push(Text::new(format!("{:.2} Ghz", self.clock.core.maximum / 1000.0)).size(24))
                             )
                     )
                     .push(
@@ -444,12 +449,12 @@ impl Gpu {
                             .push(
                                 Column::new()
                                     .push(Text::new("Temperature").size(16))
-                                    .push(Text::new(&format!("{:.0}°C", self.temperature.current)).size(24))
+                                    .push(Text::new(format!("{:.0}°C", self.temperature.current)).size(24))
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Temperature").size(16))
-                                    .push(Text::new(&format!("{:.0}°C", self.temperature.maximum)).size(24))
+                                    .push(Text::new(format!("{:.0}°C", self.temperature.maximum)).size(24))
                             )
                     )
                     .push(
@@ -457,12 +462,12 @@ impl Gpu {
                             .push(
                                 Column::new()
                                     .push(Text::new("Power Consumption").size(16))
-                                    .push(Text::new(&format!("{:.0} Watts", self.power.current)).size(24))
+                                    .push(Text::new(format!("{:.0} Watts", self.power.current)).size(24))
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Power Consumption").size(16))
-                                    .push(Text::new(&format!("{:.0} Watts", self.power.maximum)).size(24))
+                                    .push(Text::new(format!("{:.0} Watts", self.power.maximum)).size(24))
                             )
                     )
                     .push(
@@ -470,12 +475,12 @@ impl Gpu {
                             .push(
                                 Column::new()
                                     .push(Text::new("Fan Speed").size(16))
-                                    .push(Text::new(&format!("{:.0} RPM", self.fan_speed.current)).size(24))
+                                    .push(Text::new(format!("{:.0} RPM", self.fan_speed.current)).size(24))
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Fan Speed").size(16))
-                                    .push(Text::new(&format!("{:.0} RPM", self.fan_speed.maximum)).size(24))
+                                    .push(Text::new(format!("{:.0} RPM", self.fan_speed.maximum)).size(24))
                             )
                     )
             );

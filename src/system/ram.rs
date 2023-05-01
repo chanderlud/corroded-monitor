@@ -1,10 +1,12 @@
-use iced::{Alignment, Length};
-use iced::pure::Element;
-use iced::pure::widget::{Button, Column, Container, Row, Space, Text};
+use iced::{Alignment, Element, Length};
+use iced::widget::{Button, Column, Container, Row, Space, Text};
+use iced_style::theme;
 use serde_json::Value;
 
 use crate::Data;
-use crate::ui::{Message, Route, style, chart::{StatChart, Size}};
+use crate::ui::{Message, Route, chart::{StatChart, Size}};
+use crate::ui::style::buttons::ComponentSelect;
+use crate::ui::style::containers::GraphBox;
 
 #[derive(Debug, Clone)]
 pub struct Ram {
@@ -67,16 +69,16 @@ impl Ram {
 
     pub fn view(&self) -> (Element<Message>, Element<Message>) {
         let small = Button::new(Row::new().align_items(Alignment::Center)
-            .push(Space::new(Length::Units(5), Length::Shrink))
+            .push(Space::new(Length::Fixed(5.0), Length::Shrink))
             .push(
                 Container::new(
                     self.load_graph.view()
                 )
-                    .style(style::Container::Chart((183, 53, 90)))
-                    .width(Length::Units(70))
-                    .height(Length::Units(60))
+                    .style(theme::Container::Custom(Box::new(GraphBox { color: (183, 53, 90) })))
+                    .width(Length::Fixed(70.0))
+                    .height(Length::Fixed(60.0))
             )
-            .push(Space::new(Length::Units(10), Length::Shrink))
+            .push(Space::new(Length::Fixed(10.0), Length::Shrink))
             .push(
                 Column::new().spacing(3)
                     .push(Text::new("RAM"))
@@ -84,16 +86,16 @@ impl Ram {
             )
         )
             .on_press(Message::Navigate(Route::Ram))
-            .style(style::Button::ComponentSelect)
+            .style(theme::Button::Custom(Box::new(ComponentSelect)))
             .width(Length::Fill)
-            .height(Length::Units(75));
+            .height(Length::Fixed(75.0));
 
         let large = Column::new().padding(20)
             .push(
-                Row::new().align_items(Alignment::Center).height(Length::Units(30))
+                Row::new().align_items(Alignment::Center).height(Length::Fixed(30.0))
                     .push(Text::new("RAM").size(28))
             )
-            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
                 Column::new()
                     .spacing(5)
@@ -104,11 +106,11 @@ impl Ram {
                         Container::new(Text::new("aaa"))
                             .width(Length::Fill)
                             .height(Length::Fill)
-                            .style(style::Container::Chart((255, 190, 125)))
+                            .style(theme::Container::Custom(Box::new(GraphBox { color: (255, 190, 125) })))
                     )
 
             )
-            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
                 Row::new()
                     .spacing(20)
@@ -117,7 +119,7 @@ impl Ram {
                             .push(
                                 Column::new()
                                     .push(Text::new("Utilization").size(16))
-                                    .push(Text::new(&format!("{:.0}%", self.usage.current)).size(24))
+                                    .push(Text::new(format!("{:.0}%", self.usage.current)).size(24))
                             )
                     )
                     .push(
@@ -125,12 +127,12 @@ impl Ram {
                             .push(
                                 Column::new()
                                     .push(Text::new("Available").size(16))
-                                    .push(Text::new(&format!("{:.2} GB", self.available.current)).size(24))
+                                    .push(Text::new(format!("{:.2} GB", self.available.current)).size(24))
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Used").size(16))
-                                    .push(Text::new(&format!("{:.2} GB", self.used.current)).size(24))
+                                    .push(Text::new(format!("{:.2} GB", self.used.current)).size(24))
                             )
                     )
                     .push(
@@ -138,7 +140,7 @@ impl Ram {
                             .push(
                                 Column::new()
                                     .push(Text::new("Total").size(16))
-                                    .push(Text::new(&format!("{:.0} GB", self.total)).size(24))
+                                    .push(Text::new(format!("{:.0} GB", self.total)).size(24))
                             )
                     )
             );
