@@ -1,10 +1,12 @@
 use iced::{Command, executor, Length, Subscription};
-use iced::pure::{Application, Element};
-use iced::pure::widget::{Column, Container, Row};
+use iced::{Application, Element};
+use iced::widget::{Column, Container, Row};
+use iced_style::{Theme, theme};
 use crate::gpu::GraphState;
 
 use crate::SystemStats;
-use crate::ui::{Message, Route, style};
+use crate::ui::{Message, Route};
+use crate::ui::style::containers::{MainBox, SecondaryBox};
 
 pub struct App {
     route: Route,
@@ -23,6 +25,7 @@ impl Default for App {
 impl Application for App {
     type Executor = executor::Default;
     type Message = Message;
+    type Theme = Theme;
     type Flags = ();
 
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
@@ -53,10 +56,6 @@ impl Application for App {
         }
     }
 
-    fn subscription(&self) -> Subscription<Message> {
-        iced::time::every(std::time::Duration::from_millis(1000 as u64)).map(|_| Message::Update)
-    }
-
     fn view(&self) -> Element<'_, Self::Message> {
         let (cpu_small, cpu_large) = self.stats.cpu.view();
         let (gpu_small, gpu_large) = self.stats.gpu.view();
@@ -71,21 +70,32 @@ impl Application for App {
                         .push(cpu_small)
                         .push(gpu_small)
                         .push(ram_small)
-                ).style(style::Container::Secondary).height(Length::Fill).width(Length::Units(300))
+                ).style(theme::Container::Custom(Box::new(SecondaryBox))).height(Length::Fill).width(Length::Fixed(300.0))
             )
             .push(
                 match self.route {
                     Route::Cpu => Container::new(
                         cpu_large
-                    ).style(style::Container::Main).height(Length::Fill).width(Length::Fill),
+                    ).style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill),
                     Route::Gpu => Container::new(
                         gpu_large
-                    ).style(style::Container::Main).height(Length::Fill).width(Length::Fill),
+                    ).style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill),
                     Route::Ram => Container::new(
                         ram_large
-                    ).style(style::Container::Main).height(Length::Fill).width(Length::Fill),
+                    ).style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill),
                 }
             )
             .into()
+    }
+
+    fn theme(&self) -> Self::Theme {
+        match dark_light::detect() {
+            dark_light::Mode::Light => Theme::Light,
+            _ => Theme::Dark
+        }
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        iced::time::every(std::time::Duration::from_millis(1000 as u64)).map(|_| Message::Update)
     }
 }
