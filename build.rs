@@ -1,8 +1,7 @@
-#[cfg(target_os = "windows")]
 extern crate embed_resource;
 
 fn main() {
-    #[cfg(target_os = "windows")]
+    // forces app to run as admin
     embed_resource::compile("program.rc", embed_resource::NONE);
 }
 
