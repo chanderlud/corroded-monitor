@@ -1,9 +1,9 @@
 use iced::{Alignment, Element, Length};
 use iced::widget::{Button, Column, Container, Row, Space, Text};
 use iced_style::theme;
-use serde_json::Value;
 
-use crate::Data;
+use crate::{Data, Hardware};
+use crate::system::HardwareType;
 use crate::ui::{chart::StatChart, Message, Route};
 use crate::ui::style::buttons::ComponentSelect;
 use crate::ui::style::containers::GraphBox;
@@ -30,34 +30,27 @@ impl Ram {
     }
 
     // parse data for gpu from the OHM API
-    pub fn update(&mut self, data: &Value) {
-        for child in data["Children"].as_array().unwrap()[0]["Children"].as_array().unwrap() {
-            match child["ImageURL"].as_str().unwrap() {
-                "images_icon/ram.png" => {
-                    for grand_child in child["Children"].as_array().unwrap() {
-                        match grand_child["Text"].as_str().unwrap() {
-                            "Load" => {
-                                for item in grand_child["Children"].as_array().unwrap() {
-                                    self.usage = Data::from_value(item);
-                                    self.load_graph.push_data(self.usage.current);
-                                }
-                            }
-                            "Data" => {
-                                for item in grand_child["Children"].as_array().unwrap() {
-                                    let data = Data::from_value(item);
-                                    match item["Text"].as_str().unwrap() {
-                                        "Used Memory" => self.used = data,
-                                        "Available Memory" => self.available = data,
-                                        _ => {}
-                                    }
-                                }
+    pub fn update(&mut self, hardware_data: &Vec<Hardware>) {
+        for hardware in hardware_data {
+            match hardware.hardware_type {
+                HardwareType::Memory => {
+                    for sensor in &hardware.sensors {
+                        let data = Data::from(sensor);
+
+                        match sensor.name.as_str() {
+                            "Memory Used" => self.used = data,
+                            "Memory Available" => self.available = data,
+                            "Memory" => {
+                                self.usage = data;
+                                self.load_graph.push_data(self.usage.current);
                             }
                             _ => {}
                         }
                     }
-                    break;
+
+                    break; // only parse the first ram
                 }
-                _ => {}
+                _ => continue
             }
         }
 
@@ -82,7 +75,7 @@ impl Ram {
                     Column::new() // this is the text on the right side of the graph with stats summary
                         .spacing(3)
                         .push(Text::new("RAM"))
-                        .push(Text::new(format!("{:.1}/{:.1} GB  {:.0}%", self.used.current, self.total, self.usage.current)).size(14))
+                        .push(Text::new(format!("{:.1}/{:.0} GB  {:.0}%", self.used.current, self.total, self.usage.current)).size(14))
                 )
         )
             .on_press(Message::Navigate(Route::Ram))

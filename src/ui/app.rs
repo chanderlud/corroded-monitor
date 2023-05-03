@@ -1,18 +1,22 @@
+use std::sync::Arc;
 use std::time::Duration;
+
 use iced::{Command, executor, Length, Subscription};
 use iced::{Application, Element};
 use iced::time::every;
 use iced::widget::{Column, Container, Row};
 use iced_style::{Theme, theme};
+use tokio::sync::Mutex;
 
+use crate::{HardwareMonitor, SystemStats};
 use crate::gpu::GraphState;
-use crate::SystemStats;
 use crate::ui::{Message, Route};
 use crate::ui::style::containers::{MainBox, SecondaryBox};
 
 pub struct App {
     route: Route,
     stats: SystemStats,
+    monitor: Option<Arc<Mutex<HardwareMonitor>>>,
 }
 
 impl Default for App {
@@ -20,6 +24,7 @@ impl Default for App {
         Self {
             route: Route::Cpu,
             stats: SystemStats::new(),
+            monitor: None, // monitor is initialized asynchronously later
         }
     }
 }
@@ -31,7 +36,8 @@ impl Application for App {
     type Flags = ();
 
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        (App::default(), Command::none())
+        // creating the hardware monitor takes a second so its done asynchronously
+        (App::default(), Command::perform(HardwareMonitor::new(), Message::MonitorCreated))
     }
 
     fn title(&self) -> String {
@@ -40,26 +46,38 @@ impl Application for App {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::Update => Command::perform(self.stats.clone().update(), Message::Result),
-            Message::Result(s) => {
-                self.stats = s;
+            Message::Update => match self.monitor.clone() {
+                Some(monitor) => {
+                    Command::perform(
+                        self.stats.clone().update(monitor),
+                        Message::UpdateCompleted,
+                    )
+                }
+                None => Command::none() // hardware monitor is not created yet
+            },
+            Message::UpdateCompleted(updated_stats) => {
+                self.stats = updated_stats;
+                Command::none()
+            }
+            Message::MonitorCreated(monitor) => {
+                self.monitor = Some(monitor);
                 Command::none()
             }
             Message::Navigate(r) => {
                 self.route = r;
                 Command::none()
             }
-            Message::CpuPickChanged(v) => {
-                self.stats.cpu.graph_state = v;
+            Message::CpuPickChanged(state) => {
+                self.stats.cpu.graph_state = state;
                 Command::none()
             }
-            Message::GpuPickChanged(v) => {
-                if GraphState::REGION_ONE.contains(&v) {
-                    self.stats.gpu.graph_state_1 = v;
-                } else if GraphState::REGION_TWO.contains(&v) {
-                    self.stats.gpu.graph_state_2 = v;
+            Message::GpuPickChanged(state) => {
+                if GraphState::REGION_ONE.contains(&state) {
+                    self.stats.gpu.graph_state_1 = state;
+                } else if GraphState::REGION_TWO.contains(&state) {
+                    self.stats.gpu.graph_state_2 = state;
                 } else {
-                    self.stats.gpu.graph_state_3 = v;
+                    self.stats.gpu.graph_state_3 = state;
                 }
 
                 Command::none()
@@ -67,6 +85,7 @@ impl Application for App {
         }
     }
 
+    // the base of the GUI
     fn view(&self) -> Element<'_, Self::Message> {
         Row::new()
             .width(Length::Fill)
@@ -99,7 +118,8 @@ impl Application for App {
         }
     }
 
-    fn subscription(&self) -> Subscription<Message> { // update the GUI every second
+    // update the stats every second
+    fn subscription(&self) -> Subscription<Message> {
         every(Duration::from_millis(1000 as u64)).map(|_| Message::Update)
     }
 }

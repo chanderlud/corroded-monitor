@@ -4,22 +4,13 @@ use iced::{Alignment, Length};
 use iced::Element;
 use iced::widget::{Button, Column, Container, PickList, Row, Space, Text};
 use iced_style::theme;
-use serde_json::Value;
 
-use crate::Data;
+use crate::{Data, Hardware};
+use crate::system::HardwareType;
 use crate::ui::{chart::StatChart, Message, Route};
 use crate::ui::style::buttons::ComponentSelect;
 use crate::ui::style::containers::GraphBox;
 use crate::ui::style::pick_list::PickList as PickListStyle;
-
-// cpu data types
-enum DataType {
-    Temperature,
-    Load,
-    Frequency,
-    Power,
-    None,
-}
 
 // possible states for the cpu graphs
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,16 +108,17 @@ impl Cpu {
     }
 
     // update cpu widget with new data
-    pub fn update(&mut self, data: &Value) {
-        self.data_parser(data);
+    pub fn update(&mut self, hardware_data: &Vec<Hardware>) {
+        self.data_parser(hardware_data);
 
         self.calculate_totals();
         self.calculate_maximums();
         self.calculate_averages();
     }
 
-    // parse data for gpu from the OHM API
+    /*
     fn data_parser(&mut self, data: &Value) {
+
         for child in data["Children"].as_array().unwrap()[0]["Children"].as_array().unwrap() {
             match child["ImageURL"].as_str().unwrap() {
                 "images_icon/cpu.png" => {
@@ -182,6 +174,28 @@ impl Cpu {
                     break;
                 }
                 _ => {}
+            }
+        }
+
+    }
+    */
+
+    // parse data for gpu from the OHM API
+    fn data_parser(&mut self, hardware_data: &Vec<Hardware>) {
+        for hardware in hardware_data {
+            match hardware.hardware_type {
+                HardwareType::Cpu => {
+                    self.name = hardware.name.clone();
+
+                    for sensor in &hardware.sensors {
+                        let data = Data::from(sensor);
+
+                        println!("{} - {:?}: {:?}", sensor.name, sensor.sensor_type, sensor.value);
+                    }
+
+                    break; // only parse the first cpu
+                }
+                _ => continue
             }
         }
     }

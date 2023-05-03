@@ -4,25 +4,13 @@ use iced::{Alignment, Length};
 use iced::Element;
 use iced::widget::{Button, Column, Container, PickList, Row, Space, Text};
 use iced_style::theme;
-use serde_json::Value;
 
-use crate::Data;
+use crate::{Data, Hardware};
+use crate::system::{HardwareType, SensorType};
 use crate::ui::{chart::StatChart, Message, Route};
 use crate::ui::style::buttons::ComponentSelect;
 use crate::ui::style::containers::GraphBox;
 use crate::ui::style::pick_list::PickList as PickListStyle;
-
-// gpu data types
-#[derive(Debug, Clone)]
-enum DataType {
-    Temperature,
-    Load,
-    Frequency,
-    Power,
-    Fan,
-    Memory,
-    None,
-}
 
 // possible graph types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,61 +188,53 @@ impl Gpu {
     }
 
     // parse data for gpu from the OHM API
-    pub fn update(&mut self, data: &Value) {
-        for child in data["Children"].as_array().unwrap()[0]["Children"].as_array().unwrap() {
-            if child["ImageURL"].as_str().unwrap() == "images_icon/nvidia.png" || child["ImageURL"].as_str().unwrap() == "images_icon/amd.png" {
-                for grand_child in child["Children"].as_array().unwrap() {
-                    // value is needed to differential between different data sources for the same component
-                    let data_type = match grand_child["Text"].as_str().unwrap() {
-                        "Clocks" => DataType::Frequency,
-                        "Temperatures" => DataType::Temperature,
-                        "Load" => DataType::Load,
-                        "Powers" => DataType::Power,
-                        "Data" => DataType::Memory,
-                        "Fans" => DataType::Fan,
-                        _ => DataType::None,
-                    };
+    pub fn update(&mut self, hardware_data: &Vec<Hardware>) {
+        for hardware in hardware_data {
+            match hardware.hardware_type {
+                HardwareType::GpuNvidia | HardwareType::GpuAmd | HardwareType::GpuIntel => {
+                    self.name = hardware.name.clone();
 
-                    for item in grand_child["Children"].as_array().unwrap() {
-                        let label = item["Text"].as_str().unwrap();
-                        let data = Data::from_value(&item);
+                    for sensor in &hardware.sensors {
+                        let data = Data::from(sensor);
 
-                        match label {
-                            "GPU Core" => match data_type { // data for the GPU Core
-                                DataType::Load => {
+                        // TODO shader frequency & frame buffer load
+
+                        match sensor.name.as_str() {
+                            "GPU Core" => match sensor.sensor_type {
+                                SensorType::Temperature => {
+                                    self.temperature_graph.push_data(data.current);
+                                    self.temperature = data
+                                }
+                                SensorType::Load => {
                                     self.load.core_graph.push_data(data.current);
                                     self.load_graph.push_data(data.current);
                                     self.load.core = data
                                 }
-                                DataType::Temperature => {
-                                    self.temperature_graph.push_data(data.current);
-                                    self.temperature = data
-                                },
-                                DataType::Frequency => {
+                                SensorType::Clock => {
                                     self.clock.core_graph.push_data(data.current);
                                     self.clock.core = data
                                 }
                                 _ => {}
                             }
-                            "GPU Memory" => match data_type { // data for the GPU Memory
-                                DataType::Load => {
+                            "GPU Memory" => match sensor.sensor_type {
+                                SensorType::Load => {
                                     self.load.memory_graph.push_data(data.current);
                                     self.load.memory = data
                                 }
-                                DataType::Frequency => {
+                                SensorType::Clock => {
                                     self.clock.memory_graph.push_data(data.current);
                                     self.clock.memory = data
                                 }
                                 _ => {}
                             }
-                            "GPU" => match data_type { // data for the GPU
-                                DataType::Fan => {
+                            "GPU" => match sensor.sensor_type {
+                                SensorType::Fan => {
                                     self.fan_graph.push_data(data.current);
                                     self.fan_speed = data
                                 }
                                 _ => {}
                             }
-                            "GPU Frame Buffer" => { // data for the GPU Frame Buffer, etc etc
+                            "GPU Frame Buffer" => {
                                 self.load.frame_buffer_graph.push_data(data.current);
                                 self.load.frame_buffer = data
                             }
@@ -262,28 +242,36 @@ impl Gpu {
                                 self.load.video_engine_graph.push_data(data.current);
                                 self.load.video_engine = data
                             }
-                            "GPU Bus Interface" => {
-                                self.load.bus_interface_graph.push_data(data.current);
-                                self.load.bus_interface = data
-                            }
+                            // "GPU Bus" => {
+                            //     self.load.bus_interface_graph.push_data(data.current);
+                            //     self.load.bus_interface = data
+                            // }
                             "GPU Power" => {
                                 self.power_graph.push_data(data.current);
                                 self.power = data
-                            },
+                            }
                             "GPU Memory Used" => self.memory.used = data,
                             "GPU Memory Total" => self.memory.total = data.current,
                             "GPU Memory Free" => self.memory.free = data,
-                            "GPU Shader" => {
-                                self.clock.shader_graph.push_data(data.current);
-                                self.clock.shader = data
+                            // "GPU Shader" => {
+                            //     self.clock.shader_graph.push_data(data.current);
+                            //     self.clock.shader = data
+                            // }
+                            _ => {
+                                // there can be multiple fans with index after the name
+                                if sensor.name.starts_with("GPU Fan") && sensor.sensor_type == SensorType::Fan {
+                                    self.fan_graph.push_data(data.current);
+                                    self.fan_speed = data
+                                } else {
+                                    // println!("Unknown GPU sensor: {}", sensor.name)
+                                }
                             }
-                            _ => {}
                         }
                     }
-                }
 
-                self.name = child["Text"].as_str().unwrap().replace("NVIDIA NVIDIA", "NVIDIA"); // idk
-                break; // no need to process any more children
+                    break; // only parse first GPU
+                }
+                _ => continue
             }
         }
     }
