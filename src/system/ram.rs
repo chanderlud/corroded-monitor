@@ -2,8 +2,7 @@ use iced::{Alignment, Element, Length};
 use iced::widget::{Button, Column, Container, Row, Space, Text};
 use iced_style::theme;
 
-use crate::{Data, Hardware};
-use crate::system::HardwareType;
+use crate::system::{Data, HardwareType, Hardware};
 use crate::ui::{chart::StatChart, Message, Route};
 use crate::ui::style::buttons::ComponentSelect;
 use crate::ui::style::containers::GraphBox;
@@ -11,10 +10,10 @@ use crate::ui::style::containers::GraphBox;
 // ram widget
 #[derive(Debug, Clone)]
 pub struct Ram {
-    pub usage: Data,
-    pub used: Data,
-    pub available: Data,
-    pub total: f32,
+    pub(crate) usage: Data,
+    pub(crate) used: Data,
+    pub(crate) available: Data,
+    pub(crate) total: f32,
     load_graph: StatChart,
 }
 

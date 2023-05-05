@@ -15,9 +15,9 @@ dark-light = "1.0.0"
 plotters = { version = "0.3.0", default-features = false, features = ["line_series", "datetime", "deprecated_items", "area_series"]}
 plotters-iced = "0.8.0"
 plotters-backend = "0.3.0"
-chrono = "0.4.19"
 image = { version = "0.24.2", default-features = false, features = ["ico"] }
 serde = { version = "1.0.160", features = ["derive"] }
+regex = "1.8.1"
 
 [build-dependencies]
 embed-resource = "2.1.1"

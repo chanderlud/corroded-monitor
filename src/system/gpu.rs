@@ -5,8 +5,7 @@ use iced::Element;
 use iced::widget::{Button, Column, Container, PickList, Row, Space, Text};
 use iced_style::theme;
 
-use crate::{Data, Hardware};
-use crate::system::{HardwareType, SensorType};
+use crate::system::{Data, Hardware, HardwareType, SensorType};
 use crate::ui::{chart::StatChart, Message, Route};
 use crate::ui::style::buttons::ComponentSelect;
 use crate::ui::style::containers::GraphBox;
@@ -76,11 +75,11 @@ impl std::fmt::Display for GraphState {
 // data class
 #[derive(Debug, Clone)]
 pub struct GpuClock {
-    pub core: Data,
+    pub(crate) core: Data,
     core_graph: StatChart,
-    pub memory: Data,
+    pub(crate) memory: Data,
     memory_graph: StatChart,
-    pub shader: Data,
+    pub(crate) shader: Data,
     shader_graph: StatChart,
 }
 
@@ -100,9 +99,9 @@ impl GpuClock {
 // data class
 #[derive(Debug, Clone)]
 pub struct GpuMemory {
-    pub free: Data,
-    pub used: Data,
-    pub total: f32,
+    pub(crate) free: Data,
+    pub(crate) used: Data,
+    pub(crate) total: f32,
 }
 
 impl GpuMemory {
@@ -118,15 +117,15 @@ impl GpuMemory {
 // data class
 #[derive(Debug, Clone)]
 pub struct GpuLoad {
-    pub core: Data,
+    pub(crate) core: Data,
     core_graph: StatChart,
-    pub memory: Data,
+    pub(crate) memory: Data,
     memory_graph: StatChart,
-    pub frame_buffer: Data,
+    pub(crate) frame_buffer: Data,
     frame_buffer_graph: StatChart,
-    pub video_engine: Data,
+    pub(crate) video_engine: Data,
     video_engine_graph: StatChart,
-    pub bus_interface: Data,
+    pub(crate) bus_interface: Data,
     bus_interface_graph: StatChart,
 }
 
@@ -151,19 +150,19 @@ impl GpuLoad {
 #[derive(Debug, Clone)]
 pub struct Gpu {
     pub name: String,
-    pub temperature: Data,
+    pub(crate) temperature: Data,
     temperature_graph: StatChart,
-    pub fan_speed: Data,
+    pub(crate) fan_speed: Data,
     fan_graph: StatChart,
-    pub power: Data,
+    pub(crate) power: Data,
     power_graph: StatChart,
-    pub load: GpuLoad,
-    pub memory: GpuMemory,
-    pub clock: GpuClock,
+    pub(crate) load: GpuLoad,
+    pub(crate) memory: GpuMemory,
+    pub(crate) clock: GpuClock,
     load_graph: StatChart,
-    pub graph_state_1: GraphState,
-    pub graph_state_2: GraphState,
-    pub graph_state_3: GraphState,
+    pub(crate) graph_state_1: GraphState,
+    pub(crate) graph_state_2: GraphState,
+    pub(crate) graph_state_3: GraphState,
 
 }
 
@@ -197,7 +196,7 @@ impl Gpu {
                     for sensor in &hardware.sensors {
                         let data = Data::from(sensor);
 
-                        // TODO shader frequency & frame buffer load
+                        // TODO shader frequency (should work now cause admin thingy)
 
                         match sensor.name.as_str() {
                             "GPU Core" => match sensor.sensor_type {
@@ -242,10 +241,10 @@ impl Gpu {
                                 self.load.video_engine_graph.push_data(data.current);
                                 self.load.video_engine = data
                             }
-                            // "GPU Bus" => {
-                            //     self.load.bus_interface_graph.push_data(data.current);
-                            //     self.load.bus_interface = data
-                            // }
+                            "GPU Bus" => {
+                                self.load.bus_interface_graph.push_data(data.current);
+                                self.load.bus_interface = data
+                            }
                             "GPU Power" => {
                                 self.power_graph.push_data(data.current);
                                 self.power = data
@@ -257,15 +256,11 @@ impl Gpu {
                             //     self.clock.shader_graph.push_data(data.current);
                             //     self.clock.shader = data
                             // }
-                            _ => {
-                                // there can be multiple fans with index after the name
-                                if sensor.name.starts_with("GPU Fan") && sensor.sensor_type == SensorType::Fan {
-                                    self.fan_graph.push_data(data.current);
-                                    self.fan_speed = data
-                                } else {
-                                    // println!("Unknown GPU sensor: {}", sensor.name)
-                                }
+                            "GPU Fan 1" => if sensor.sensor_type == SensorType::Fan {
+                                self.fan_graph.push_data(data.current);
+                                self.fan_speed = data
                             }
+                            _ => {}
                         }
                     }
 

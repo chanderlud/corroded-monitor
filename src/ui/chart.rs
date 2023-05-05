@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use iced::Element;
 use iced::Length;
 use plotters::prelude::*;
@@ -11,33 +10,40 @@ use crate::ui::Message;
 
 #[derive(Debug, Clone)]
 pub struct StatChart {
-    data_points: VecDeque<(DateTime<Utc>, i32)>,
+    data_points: VecDeque<(i32, i32)>,
     // data
     color: (u8, u8, u8),
     // color of the line
     pub maximum_value: i32,
     // max value of the graph
-    line_width: u32, // width of the line
+    iterator: i32,
 }
 
 impl StatChart {
     pub fn new(color: (u8, u8, u8)) -> Self {
         Self {
-            data_points: vec![(Utc::now(), 0)].into(), // TODO does the x really need to be times? or can it just be a counter
+            data_points: VecDeque::with_capacity(102),
             color,
             maximum_value: 100,
-            line_width: 1,
+            iterator: 0
         }
     }
 
     pub fn push_data(&mut self, value: f32) {
+        // fill with zeros until we have 100 data points
+        while self.data_points.len() < 101 {
+            self.data_points.push_front((self.iterator, 0));
+            self.iterator += 1;
+        }
+
         let local_value = value as i32;
 
-        self.data_points.push_front((Utc::now(), local_value));
+        self.data_points.push_front((self.iterator, local_value));
+        self.iterator += 1;
 
-        // limit data points to 100 seconds
-        if self.data_points.len() > 100 {
-            self.data_points.remove(self.data_points.len() - 1);
+        // limit data points
+        if self.data_points.len() > 101 {
+            self.data_points.pop_back();
         }
 
         // store maximum value for the graph label
@@ -63,17 +69,13 @@ impl Chart<Message> for StatChart {
 
         let color = RGBColor(self.color.0, self.color.1, self.color.2);
 
-        let newest_time = self
-            .data_points
-            .front()
-            .unwrap_or(&(DateTime::from_utc(NaiveDateTime::from_timestamp_opt(0, 0).unwrap(), Utc), 0)).0;
-
-        let oldest_time = newest_time - Duration::seconds(100); // 100 seconds because 100 datapoints
+        let newest = self.data_points.front().unwrap_or(&(0, 0)).0;
+        let oldest = self.data_points.back().unwrap_or(&(0, 0)).0;
 
         let mut chart = chart
             .x_label_area_size(0)
             .y_label_area_size(0)
-            .build_cartesian_2d(oldest_time..newest_time, 0..self.maximum_value)
+            .build_cartesian_2d(oldest..newest, 0..self.maximum_value)
             .expect("failed to build chart");
 
         chart
@@ -92,7 +94,7 @@ impl Chart<Message> for StatChart {
                 )
                     .border_style(
                         ShapeStyle::from(&color)
-                            .stroke_width(self.line_width)
+                            .stroke_width(1)
                     ),
             )
             .expect("failed to draw chart data");

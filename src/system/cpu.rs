@@ -4,9 +4,9 @@ use iced::{Alignment, Length};
 use iced::Element;
 use iced::widget::{Button, Column, Container, PickList, Row, Space, Text};
 use iced_style::theme;
+use regex::Regex;
 
-use crate::{Data, Hardware};
-use crate::system::HardwareType;
+use crate::system::{Data, Hardware, HardwareType, SensorType};
 use crate::ui::{chart::StatChart, Message, Route};
 use crate::ui::style::buttons::ComponentSelect;
 use crate::ui::style::containers::GraphBox;
@@ -40,25 +40,23 @@ impl std::fmt::Display for GraphState {
     }
 }
 
-// data for a single cpu core
+// data for a single cpu thread
 #[derive(Debug, Clone)]
-pub struct CpuCore {
+pub struct CpuThread {
     temperature: Vec<Data>,
     frequency: Vec<Data>,
     load: Vec<Data>,
-    power: Vec<Data>,
     load_graph: StatChart,
     temperature_graph: StatChart,
     frequency_graph: StatChart,
 }
 
-impl CpuCore {
-    fn default() -> Self {
+impl CpuThread {
+    fn new() -> Self {
         Self {
-            temperature: vec![],
-            frequency: vec![],
-            load: vec![],
-            power: vec![],
+            temperature: Vec::new(),
+            frequency: Vec::new(),
+            load: Vec::new(),
             load_graph: StatChart::new((0, 255, 255)),
             temperature_graph: StatChart::new((183, 53, 90)),
             frequency_graph: StatChart::new((255, 190, 125)),
@@ -66,6 +64,30 @@ impl CpuCore {
     }
 }
 
+// data for a single cpu core, can contain multiple threads
+#[derive(Debug, Clone)]
+pub struct CpuCore {
+    pub(crate) threads: Vec<CpuThread>,
+    thread_count: usize,
+}
+
+impl CpuCore {
+    fn new() -> Self {
+        Self {
+            threads: Vec::new(),
+            thread_count: 0,
+        }
+    }
+}
+
+impl CpuCore {
+    fn add_thread(&mut self) {
+        self.threads.push(CpuThread::new());
+        self.thread_count += 1;
+    }
+}
+
+// TODO this may leak memory
 // the cpu widget
 #[derive(Debug, Clone)]
 pub struct Cpu {
@@ -83,14 +105,17 @@ pub struct Cpu {
     pub average_power: f32,
     pub average_load: f32,
     pub graph_state: GraphState,
+    power: Vec<Data>,
     load_graph: StatChart,
+    regex: Regex,
 }
 
 impl Cpu {
-    pub fn new() -> Self { // new cpu widget with default state
+    // new cpu widget with default state
+    pub fn new() -> Self {
         Self {
-            name: "".to_string(),
-            cores: vec![],
+            name: String::new(),
+            cores: Vec::new(),
             total_temperature: 0.0,
             total_frequency: 0.0,
             total_load: 0.0,
@@ -103,7 +128,9 @@ impl Cpu {
             average_power: 0.0,
             average_load: 0.0,
             graph_state: GraphState::Utilization,
+            power: Vec::new(),
             load_graph: StatChart::new((0, 255, 255)),
+            regex: Regex::new(r"CPU Core #(\d+)(?: Thread #(\d+))?").unwrap(), // regex for parsing cpu core/thread data
         }
     }
 
@@ -116,70 +143,6 @@ impl Cpu {
         self.calculate_averages();
     }
 
-    /*
-    fn data_parser(&mut self, data: &Value) {
-
-        for child in data["Children"].as_array().unwrap()[0]["Children"].as_array().unwrap() {
-            match child["ImageURL"].as_str().unwrap() {
-                "images_icon/cpu.png" => {
-                    for grand_child in child["Children"].as_array().unwrap() {
-                        let data_type = match grand_child["Text"].as_str().unwrap() {
-                            "Clocks" => DataType::Frequency,
-                            "Temperatures" => DataType::Temperature,
-                            "Load" => DataType::Load,
-                            "Powers" => DataType::Power,
-                            _ => DataType::None,
-                        };
-
-                        for core in grand_child["Children"].as_array().unwrap() {
-                            let label = core["Text"].as_str().unwrap();
-
-                            if label.contains("CPU Core") && !label.contains("CPU Cores") {
-                                let index = label.split("#").collect::<Vec<&str>>()[1].parse::<usize>().unwrap() - 1;
-
-                                match self.cores.get(index) {
-                                    Some(_) => {}
-                                    None => { self.cores.push(CpuCore::default()) }
-                                }
-
-                                let d = Data::from_value(core);
-
-                                match data_type {
-                                    DataType::Temperature => {
-                                        self.cores[index].temperature_graph.push_data(d.current);
-                                        self.cores[index].temperature.push(d);
-                                    }
-                                    DataType::Frequency => {
-                                        self.cores[index].frequency_graph.push_data(d.current);
-                                        self.cores[index].frequency.push(d)
-                                    }
-                                    DataType::Load => {
-                                        self.cores[index].load_graph.push_data(d.current);
-                                        self.cores[index].load.push(d)
-                                    }
-                                    DataType::Power => self.cores[index].power.push(d),
-                                    _ => {}
-                                }
-                            } else if label == "CPU Cores" {
-                                let d = Data::from_value(core);
-
-                                for core in self.cores.iter_mut() {
-                                    core.power.push(d.clone())
-                                }
-                            }
-                        }
-                    }
-
-                    self.name = child["Text"].as_str().unwrap().to_owned();
-                    break;
-                }
-                _ => {}
-            }
-        }
-
-    }
-    */
-
     // parse data for gpu from the OHM API
     fn data_parser(&mut self, hardware_data: &Vec<Hardware>) {
         for hardware in hardware_data {
@@ -190,7 +153,60 @@ impl Cpu {
                     for sensor in &hardware.sensors {
                         let data = Data::from(sensor);
 
-                        println!("{} - {:?}: {:?}", sensor.name, sensor.sensor_type, sensor.value);
+                        if sensor.name == "CPU Cores" {
+                            self.power.push(data);
+                        } else if sensor.name.starts_with("CPU Core") && !sensor.name.ends_with("TjMax") {
+                            match sensor.sensor_type {
+                                SensorType::Load => {
+                                    let captures = self.regex.captures(&sensor.name).unwrap();
+
+                                    let core_index = captures.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
+
+                                    let thread_index = match captures.get(2) {
+                                        Some(thread) => thread.as_str().parse::<usize>().unwrap() - 1,
+                                        None => 0,
+                                    };
+
+                                    if self.cores.len() == core_index {
+                                        self.cores.push(CpuCore::new());
+                                    }
+
+                                    if self.cores[core_index].threads.len() == thread_index {
+                                        self.cores[core_index].add_thread();
+                                    }
+
+                                    let thread = &mut self.cores[core_index].threads[thread_index];
+
+                                    thread.load_graph.push_data(data.current);
+                                    thread.load.push(data);
+                                }
+                                SensorType::Clock => {
+                                    if self.cores.len() == sensor.index - 1 {
+                                        self.cores.push(CpuCore::new());
+                                        self.cores[sensor.index - 1].add_thread();
+                                    }
+
+                                    // clock data is per core so assign data to all threads in the core
+                                    for thread in &mut self.cores[sensor.index - 1].threads {
+                                        thread.frequency_graph.push_data(data.current.clone());
+                                        thread.frequency.push(data.clone());
+                                    }
+                                }
+                                SensorType::Temperature => {
+                                    if self.cores.len() == sensor.index {
+                                        self.cores.push(CpuCore::new());
+                                        self.cores[sensor.index].add_thread();
+                                    }
+
+                                    // temperature data is per core so assign data to all threads in the core
+                                    for thread in &mut self.cores[sensor.index].threads {
+                                        thread.temperature_graph.push_data(data.current.clone());
+                                        thread.temperature.push(data.clone());
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
                     }
 
                     break; // only parse the first cpu
@@ -203,7 +219,7 @@ impl Cpu {
     // calculate the total stats for all cores
     fn calculate_totals(&mut self) {
         self.total_temperature = self.calculate_total_metric(|d| &d.temperature);
-        self.total_power = self.calculate_total_metric(|d| &d.power);
+        self.total_power = self.power.last().unwrap().current;
         self.total_frequency = self.calculate_total_metric(|d| &d.frequency);
         self.total_load = self.calculate_total_metric(|d| &d.load);
 
@@ -213,7 +229,7 @@ impl Cpu {
     // average maximum temperature across all cores
     fn calculate_maximums(&mut self) {
         self.maximum_temperature = self.calculate_maximum_metric(|d| &d.temperature);
-        self.maximum_power = self.calculate_maximum_metric(|d| &d.power);
+        self.maximum_power = self.power.last().unwrap().maximum;
         self.maximum_frequency = self.calculate_maximum_metric(|d| &d.frequency);
     }
 
@@ -221,19 +237,23 @@ impl Cpu {
     fn calculate_averages(&mut self) {
         self.average_temperature = self.calculate_average_metric(|d| &d.temperature);
         self.average_frequency = self.calculate_average_metric(|d| &d.frequency);
-        self.average_power = self.calculate_average_metric(|d| &d.power);
+        self.average_power = self.power.iter().map(|d| d.current).sum::<f32>() / self.power.len() as f32;
         self.average_load = self.calculate_average_metric(|d| &d.load);
     }
 
     fn calculate_total_metric<F>(&self, metric_selector: F) -> f32
         where
-            F: Fn(&CpuCore) -> &Vec<Data>,
+            F: Fn(&CpuThread) -> &Vec<Data>,
     {
         let core_count = self.cores.len() as f32;
+
         self.cores
             .iter()
-            .map(|d| {
-                let metric = metric_selector(d);
+            .map(|core| &core.threads)
+            .flatten()
+            .map(|thread| {
+                let metric = metric_selector(thread);
+
                 if !metric.is_empty() {
                     metric.last().unwrap().current
                 } else {
@@ -246,13 +266,17 @@ impl Cpu {
 
     fn calculate_maximum_metric<F>(&self, metric_selector: F) -> f32
         where
-            F: Fn(&CpuCore) -> &Vec<Data>,
+            F: Fn(&CpuThread) -> &Vec<Data>,
     {
         let core_count = self.cores.len() as f32;
+
         self.cores
             .iter()
-            .map(|d| {
-                let metric = metric_selector(d);
+            .map(|core| &core.threads)
+            .flatten()
+            .map(|thread| {
+                let metric = metric_selector(thread);
+
                 if !metric.is_empty() {
                     metric.last().unwrap().maximum
                 } else {
@@ -265,14 +289,18 @@ impl Cpu {
 
     fn calculate_average_metric<F>(&self, metric_selector: F) -> f32
         where
-            F: Fn(&CpuCore) -> &Vec<Data>,
+            F: Fn(&CpuThread) -> &Vec<Data>,
     {
         let core_count = self.cores.len() as f32;
+
         self.cores
             .iter()
-            .map(|d| {
-                let metric = metric_selector(d);
+            .map(|core| &core.threads)
+            .flatten()
+            .map(|thread| {
+                let metric = metric_selector(thread);
                 let metric_len = metric.len() as f32;
+
                 if metric_len > 0.0 {
                     metric.iter().map(|v| v.current).sum::<f32>() / metric_len
                 } else {
@@ -312,8 +340,8 @@ impl Cpu {
     }
 
     pub fn view_large(&self) -> Element<Message> {
-        let core_count = self.cores.len();
-        let row_count = calculate_rows(core_count);
+        let thread_count = self.cores.iter().map(|c| c.thread_count).sum::<usize>();
+        let row_count = calculate_rows(thread_count);
 
         // create the graphs
         let graphs = create_graph_elements(&self.cores, self.graph_state);
@@ -451,8 +479,8 @@ impl Cpu {
 }
 
 // determine the optimal number of rows for the core graph grid
-fn calculate_rows(core_count: usize) -> usize {
-    let factors = (1..core_count + 1).into_iter().filter(|&x| core_count % x == 0).collect::<Vec<usize>>();
+fn calculate_rows(thread_count: usize) -> usize {
+    let factors = (1..thread_count + 1).into_iter().filter(|&x| thread_count % x == 0).collect::<Vec<usize>>();
     let count = factors.len();
 
     if count == 0 {
@@ -477,11 +505,13 @@ fn calculate_rows(core_count: usize) -> usize {
 fn create_graph_elements(cores: &[CpuCore], graph_state: GraphState) -> Vec<Element<Message>> {
     cores
         .iter()
-        .map(|c| {
+        .map(|core| &core.threads)
+        .flatten()
+        .map(|thread| {
             let (graph, color) = match graph_state {
-                GraphState::Utilization => (&c.load_graph, (0, 255, 255)),
-                GraphState::Temperature => (&c.temperature_graph, (183, 53, 90)),
-                GraphState::Frequency => (&c.frequency_graph, (255, 190, 125)),
+                GraphState::Utilization => (&thread.load_graph, (0, 255, 255)),
+                GraphState::Temperature => (&thread.temperature_graph, (183, 53, 90)),
+                GraphState::Frequency => (&thread.frequency_graph, (255, 190, 125)),
             };
 
             Element::new(

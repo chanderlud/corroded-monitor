@@ -8,8 +8,8 @@ use iced::widget::{Column, Container, Row};
 use iced_style::{Theme, theme};
 use tokio::sync::Mutex;
 
-use crate::{HardwareMonitor, SystemStats};
 use crate::gpu::GraphState;
+use crate::system::{HardwareMonitor, SystemStats};
 use crate::ui::{Message, Route};
 use crate::ui::style::containers::{MainBox, SecondaryBox};
 
@@ -55,7 +55,13 @@ impl Application for App {
                 }
                 None => Command::none() // hardware monitor is not created yet
             },
-            Message::UpdateCompleted(updated_stats) => {
+            Message::UpdateCompleted(mut updated_stats) => {
+                // in case the graph states have changed since the update began
+                updated_stats.cpu.graph_state = self.stats.cpu.graph_state;
+                updated_stats.gpu.graph_state_1 = self.stats.gpu.graph_state_1;
+                updated_stats.gpu.graph_state_2 = self.stats.gpu.graph_state_2;
+                updated_stats.gpu.graph_state_3 = self.stats.gpu.graph_state_3;
+
                 self.stats = updated_stats;
                 Command::none()
             }

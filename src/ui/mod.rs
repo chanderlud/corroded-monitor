@@ -1,4 +1,3 @@
-use std::ffi::c_void;
 use std::sync::Arc;
 
 use iced::Application;
@@ -7,10 +6,8 @@ use iced::window::{PlatformSpecific, Settings as Window};
 use iced::window::icon::from_rgba;
 use image::load_from_memory;
 use tokio::sync::Mutex;
-use tokio::task::spawn_blocking;
 
-use crate::CreateHardwareMonitor;
-use crate::SystemStats;
+use crate::system::{HardwareMonitor, SystemStats};
 use crate::ui::app::App;
 
 pub mod style;
@@ -19,38 +16,20 @@ pub mod chart;
 
 const ICON: &[u8] = include_bytes!("../../icon.ico");
 
-// a wrapper around the hardware monitor reference
-#[derive(Debug)]
-pub struct HardwareMonitor {
-    pub(crate) inner: *mut c_void,
-}
-
-// this is okay because the hardware monitor is always inside a Arc<Mutex<T>>
-unsafe impl Send for HardwareMonitor {}
-
-impl HardwareMonitor {
-    // asynchronously create a new hardware monitor reference
-    async fn new() -> Arc<Mutex<Self>> {
-        spawn_blocking(|| {
-            let inner = unsafe { CreateHardwareMonitor() };
-            Arc::new(Mutex::new(Self { inner }))
-        }).await.unwrap()
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum Message {
-    Update,
     // emitted every second to update the stats
-    UpdateCompleted(SystemStats),
+    Update,
     // message contains the updated stats object
-    MonitorCreated(Arc<Mutex<HardwareMonitor>>),
+    UpdateCompleted(SystemStats),
     // message contains the hardware monitor reference
-    Navigate(Route),
+    MonitorCreated(Arc<Mutex<HardwareMonitor>>),
     // message for navigating between pages
-    CpuPickChanged(crate::system::cpu::GraphState),
+    Navigate(Route),
     // cpu pick list changed
-    GpuPickChanged(crate::system::gpu::GraphState),  // gpu pick list changed
+    CpuPickChanged(crate::system::cpu::GraphState),
+    // gpu pick list changed
+    GpuPickChanged(crate::system::gpu::GraphState),
 }
 
 // GUI routes
