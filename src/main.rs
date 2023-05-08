@@ -3,16 +3,17 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-
-use system::{cpu, gpu, ram};
+use system::{cpu, gpu, ram, storage};
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 mod ui;
 mod system;
+mod config;
 
-// TODO light mode theme is fucked
-fn main() { // TODO static linking
+// TODO optional stats, dont render them if they arent available
+// TODO try to setup auto into theme for styles
+fn main() {
     if let Err(error) = ui::main() {
         println!("An error occurred: {:?}", error);
     }

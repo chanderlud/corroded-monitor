@@ -1,36 +1,11 @@
-use iced::{Color};
+use iced::Color;
 use iced::widget::container;
 use iced_style::container::Appearance;
 use iced_style::Theme;
 
-pub struct MainBox;
+pub(crate) struct MainBox;
 
 impl container::StyleSheet for MainBox {
-    type Style = Theme;
-
-    fn appearance(&self, style: &Self::Style) -> Appearance {
-        match style {
-            Theme::Light => Appearance {
-                text_color: None,
-                background: Color::WHITE.into(),
-                border_radius: 0.0,
-                border_width: 0.0,
-                border_color: Default::default()
-            },
-            _ => Appearance {
-                text_color: Color::WHITE.into(),
-                background: Color::from_rgb8(20, 20, 23).into(),
-                border_radius: 0.0,
-                border_width: 0.0,
-                border_color: Default::default()
-            }
-        }
-    }
-}
-
-pub struct SecondaryBox;
-
-impl container::StyleSheet for SecondaryBox {
     type Style = Theme;
 
     fn appearance(&self, style: &Self::Style) -> Appearance {
@@ -40,39 +15,70 @@ impl container::StyleSheet for SecondaryBox {
                 background: Color::from_rgb8(242, 242, 249).into(),
                 border_radius: 0.0,
                 border_width: 0.0,
-                border_color: Default::default()
+                border_color: Default::default(),
+            },
+            _ => Appearance {
+                text_color: Color::WHITE.into(),
+                background: Color::from_rgb8(20, 20, 23).into(),
+                border_radius: 0.0,
+                border_width: 0.0,
+                border_color: Default::default(),
+            }
+        }
+    }
+}
+
+pub(crate) struct SecondaryBox;
+
+impl container::StyleSheet for SecondaryBox {
+    type Style = Theme;
+
+    fn appearance(&self, style: &Self::Style) -> Appearance {
+        match style {
+            Theme::Light => Appearance {
+                text_color: None,
+                background: Color::from_rgb8(230, 230, 230).into(),
+                border_radius: 0.0,
+                border_width: 0.0,
+                border_color: Default::default(),
             },
             _ => Appearance {
                 text_color: Color::WHITE.into(),
                 background: Color::from_rgb8(36, 37, 40).into(),
                 border_radius: 0.0,
                 border_width: 0.0,
-                border_color: Default::default()
+                border_color: Default::default(),
             }
         }
     }
 }
 
-pub struct TertiaryBox;
+pub(crate) struct TertiaryBox;
 
 impl container::StyleSheet for TertiaryBox {
     type Style = Theme;
 
-    fn appearance(&self, style: &Self::Style) -> Appearance {
-        match style {
-            _ => Appearance {
-                text_color: Color::WHITE.into(),
-                background: Color::from_rgb8(34, 34, 38).into(),
-                border_radius: 0.0,
-                border_width: 0.0,
-                border_color: Default::default()
-            }
+    fn appearance(&self, _style: &Self::Style) -> Appearance {
+        Appearance {
+            text_color: Color::WHITE.into(),
+            background: Color::from_rgb8(34, 34, 38).into(),
+            border_radius: 0.0,
+            border_width: 0.0,
+            border_color: Default::default(),
         }
     }
 }
 
-pub struct GraphBox {
-    pub color: (u8, u8, u8)
+pub(crate) struct GraphBox {
+    color: Color,
+}
+
+impl GraphBox {
+    pub(crate) fn new(color: (u8, u8, u8)) -> Self {
+        Self {
+            color: Color::from_rgb8(color.0, color.1, color.2),
+        }
+    }
 }
 
 impl container::StyleSheet for GraphBox {
@@ -82,17 +88,17 @@ impl container::StyleSheet for GraphBox {
         match style {
             Theme::Light => Appearance {
                 text_color: None,
-                background: Color::WHITE.into(),
+                background: Color::TRANSPARENT.into(),
                 border_radius: 4.0,
-                border_width: 1.0,
-                border_color: Color::from_rgb8(self.color.0, self.color.1, self.color.2).into()
+                border_width: 2.0,
+                border_color: self.color.into(),
             },
             _ => Appearance {
                 text_color: None,
                 background: Color::from_rgb8(34, 34, 38).into(),
                 border_radius: 4.0,
                 border_width: 1.0,
-                border_color: Color::from_rgb8(self.color.0, self.color.1, self.color.2).into()
+                border_color: self.color.into(),
             }
         }
     }

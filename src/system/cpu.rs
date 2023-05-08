@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+use std::fmt::Display;
 use std::rc::Rc;
 
 use iced::{Alignment, Length};
@@ -6,15 +8,15 @@ use iced::widget::{Button, Column, Container, PickList, Row, Space, Text};
 use iced_style::theme;
 use regex::Regex;
 
-use crate::system::{Data, Hardware, HardwareType, SensorType};
-use crate::ui::{chart::StatChart, Message, Route};
-use crate::ui::style::buttons::ComponentSelect;
-use crate::ui::style::containers::GraphBox;
+use crate::system::{Data, Hardware, SensorType};
+use crate::ui::{chart::LineGraph, Message, Route};
+use crate::ui::style::button::ComponentSelect;
+use crate::ui::style::container::GraphBox;
 use crate::ui::style::pick_list::PickList as PickListStyle;
 
 // possible states for the cpu graphs
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GraphState {
+pub(crate) enum GraphState {
     Temperature,
     Utilization,
     Frequency,
@@ -28,7 +30,7 @@ impl GraphState {
     ];
 }
 
-impl std::fmt::Display for GraphState {
+impl Display for GraphState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}",
                match self {
@@ -42,32 +44,58 @@ impl std::fmt::Display for GraphState {
 
 // data for a single cpu thread
 #[derive(Debug, Clone)]
-pub struct CpuThread {
-    temperature: Vec<Data>,
-    frequency: Vec<Data>,
-    load: Vec<Data>,
-    load_graph: StatChart,
-    temperature_graph: StatChart,
-    frequency_graph: StatChart,
+struct CpuThread {
+    temperature: VecDeque<Data>,
+    temperature_graph: LineGraph,
+    frequency: VecDeque<Data>,
+    frequency_graph: LineGraph,
+    load: VecDeque<Data>,
+    load_graph: LineGraph,
 }
 
 impl CpuThread {
     fn new() -> Self {
         Self {
-            temperature: Vec::new(),
-            frequency: Vec::new(),
-            load: Vec::new(),
-            load_graph: StatChart::new((0, 255, 255)),
-            temperature_graph: StatChart::new((183, 53, 90)),
-            frequency_graph: StatChart::new((255, 190, 125)),
+            temperature: VecDeque::with_capacity(600),
+            temperature_graph: LineGraph::new((183, 53, 90)),
+            frequency: VecDeque::with_capacity(600),
+            frequency_graph: LineGraph::new((255, 190, 125)),
+            load: VecDeque::with_capacity(600),
+            load_graph: LineGraph::new((0, 255, 255)),
         }
+    }
+
+    // adds data point to thread
+    fn push(&mut self, data: Data, sensor_type: SensorType) {
+        let array = match sensor_type {
+            SensorType::Temperature => &mut self.temperature,
+            SensorType::Frequency => &mut self.frequency,
+            SensorType::Load => &mut self.load,
+            _ => unreachable!()
+        };
+
+        let graph = match sensor_type {
+            SensorType::Temperature => &mut self.temperature_graph,
+            SensorType::Frequency => &mut self.frequency_graph,
+            SensorType::Load => &mut self.load_graph,
+            _ => unreachable!()
+        };
+
+        graph.push_data(data.current);
+
+        // limit data points to 10 minutes
+        if array.len() == 600 {
+            array.pop_front();
+        }
+
+        array.push_back(data);
     }
 }
 
 // data for a single cpu core, can contain multiple threads
 #[derive(Debug, Clone)]
-pub struct CpuCore {
-    pub(crate) threads: Vec<CpuThread>,
+struct CpuCore {
+    threads: Vec<CpuThread>,
     thread_count: usize,
 }
 
@@ -78,41 +106,40 @@ impl CpuCore {
             thread_count: 0,
         }
     }
-}
 
-impl CpuCore {
     fn add_thread(&mut self) {
         self.threads.push(CpuThread::new());
         self.thread_count += 1;
     }
 }
 
-// TODO this may leak memory
 // the cpu widget
 #[derive(Debug, Clone)]
-pub struct Cpu {
-    pub name: String,
-    pub cores: Vec<CpuCore>,
-    pub total_temperature: f32,
-    pub total_frequency: f32,
-    pub total_load: f32,
-    pub total_power: f32,
-    pub maximum_temperature: f32,
-    pub maximum_power: f32,
-    pub maximum_frequency: f32,
-    pub average_temperature: f32,
-    pub average_frequency: f32,
-    pub average_power: f32,
-    pub average_load: f32,
-    pub graph_state: GraphState,
+pub(crate) struct Cpu {
+    name: String,
+    cores: Vec<CpuCore>,
+    total_temperature: f32,
+    total_frequency: f32,
+    total_load: f32,
+    total_power: f32,
+    maximum_temperature: f32,
+    maximum_power: f32,
+    maximum_frequency: f32,
+    average_temperature: f32,
+    average_frequency: f32,
+    average_power: f32,
+    average_load: f32,
+    pub(crate) graph_state: GraphState,
     power: Vec<Data>,
-    load_graph: StatChart,
+    load_graph: LineGraph,
     regex: Regex,
+    core_count: usize,
+    logical_processor_count: usize,
 }
 
 impl Cpu {
     // new cpu widget with default state
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             name: String::new(),
             cores: Vec::new(),
@@ -129,13 +156,15 @@ impl Cpu {
             average_load: 0.0,
             graph_state: GraphState::Utilization,
             power: Vec::new(),
-            load_graph: StatChart::new((0, 255, 255)),
+            load_graph: LineGraph::new((0, 255, 255)),
             regex: Regex::new(r"CPU Core #(\d+)(?: Thread #(\d+))?").unwrap(), // regex for parsing cpu core/thread data
+            core_count: 0,
+            logical_processor_count: 0,
         }
     }
 
     // update cpu widget with new data
-    pub fn update(&mut self, hardware_data: &Vec<Hardware>) {
+    pub(crate) fn update(&mut self, hardware_data: &Hardware) {
         self.data_parser(hardware_data);
 
         self.calculate_totals();
@@ -143,75 +172,69 @@ impl Cpu {
         self.calculate_averages();
     }
 
-    // parse data for gpu from the OHM API
-    fn data_parser(&mut self, hardware_data: &Vec<Hardware>) {
-        for hardware in hardware_data {
-            match hardware.hardware_type {
-                HardwareType::Cpu => {
-                    self.name = hardware.name.clone();
+    // parse data for cpu from the OHM API
+    fn data_parser(&mut self, hardware_data: &Hardware) {
+        self.name = hardware_data.name.clone();
 
-                    for sensor in &hardware.sensors {
-                        let data = Data::from(sensor);
+        for sensor in &hardware_data.sensors {
+            let data = Data::from(sensor);
 
-                        if sensor.name == "CPU Cores" {
-                            self.power.push(data);
-                        } else if sensor.name.starts_with("CPU Core") && !sensor.name.ends_with("TjMax") {
-                            match sensor.sensor_type {
-                                SensorType::Load => {
-                                    let captures = self.regex.captures(&sensor.name).unwrap();
+            if sensor.name == "CPU Cores" {
+                self.power.push(data);
+            } else if sensor.name.starts_with("CPU Core") && !sensor.name.ends_with("TjMax") {
+                match sensor.sensor_type {
+                    SensorType::Load => {
+                        let captures = self.regex.captures(&sensor.name).unwrap();
 
-                                    let core_index = captures.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
+                        let core_index = captures.get(1).unwrap().as_str().parse::<usize>().unwrap() - 1;
 
-                                    let thread_index = match captures.get(2) {
-                                        Some(thread) => thread.as_str().parse::<usize>().unwrap() - 1,
-                                        None => 0,
-                                    };
+                        let thread_index = match captures.get(2) {
+                            Some(thread) => thread.as_str().parse::<usize>().unwrap() - 1,
+                            None => 0,
+                        };
 
-                                    if self.cores.len() == core_index {
-                                        self.cores.push(CpuCore::new());
-                                    }
+                        if self.cores.len() == core_index {
+                            self.cores.push(CpuCore::new());
+                            self.core_count += 1;
+                        }
 
-                                    if self.cores[core_index].threads.len() == thread_index {
-                                        self.cores[core_index].add_thread();
-                                    }
+                        if self.cores[core_index].threads.len() == thread_index {
+                            self.cores[core_index].add_thread();
+                            self.logical_processor_count += 1;
+                        }
 
-                                    let thread = &mut self.cores[core_index].threads[thread_index];
+                        let thread = &mut self.cores[core_index].threads[thread_index];
 
-                                    thread.load_graph.push_data(data.current);
-                                    thread.load.push(data);
-                                }
-                                SensorType::Clock => {
-                                    if self.cores.len() == sensor.index - 1 {
-                                        self.cores.push(CpuCore::new());
-                                        self.cores[sensor.index - 1].add_thread();
-                                    }
+                        thread.push(data, SensorType::Load);
+                    }
+                    SensorType::Clock => {
+                        if self.cores.len() == sensor.index - 1 {
+                            self.cores.push(CpuCore::new());
+                            self.cores[sensor.index - 1].add_thread();
+                            self.core_count += 1;
+                            self.logical_processor_count += 1;
+                        }
 
-                                    // clock data is per core so assign data to all threads in the core
-                                    for thread in &mut self.cores[sensor.index - 1].threads {
-                                        thread.frequency_graph.push_data(data.current.clone());
-                                        thread.frequency.push(data.clone());
-                                    }
-                                }
-                                SensorType::Temperature => {
-                                    if self.cores.len() == sensor.index {
-                                        self.cores.push(CpuCore::new());
-                                        self.cores[sensor.index].add_thread();
-                                    }
-
-                                    // temperature data is per core so assign data to all threads in the core
-                                    for thread in &mut self.cores[sensor.index].threads {
-                                        thread.temperature_graph.push_data(data.current.clone());
-                                        thread.temperature.push(data.clone());
-                                    }
-                                }
-                                _ => {}
-                            }
+                        // clock data is per core so assign data to all threads in the core
+                        for thread in &mut self.cores[sensor.index - 1].threads {
+                            thread.push(data, SensorType::Frequency);
                         }
                     }
+                    SensorType::Temperature => {
+                        if self.cores.len() == sensor.index {
+                            self.cores.push(CpuCore::new());
+                            self.cores[sensor.index].add_thread();
+                            self.core_count += 1;
+                            self.logical_processor_count += 1;
+                        }
 
-                    break; // only parse the first cpu
+                        // temperature data is per core so assign data to all threads in the core
+                        for thread in &mut self.cores[sensor.index].threads {
+                            thread.push(data, SensorType::Temperature);
+                        }
+                    }
+                    _ => {}
                 }
-                _ => continue
             }
         }
     }
@@ -219,7 +242,13 @@ impl Cpu {
     // calculate the total stats for all cores
     fn calculate_totals(&mut self) {
         self.total_temperature = self.calculate_total_metric(|d| &d.temperature);
-        self.total_power = self.power.last().unwrap().current;
+
+        if self.power.len() > 0 {
+            self.total_power = self.power.last().unwrap().current;
+        } else {
+            self.total_power = 0.0;
+        }
+
         self.total_frequency = self.calculate_total_metric(|d| &d.frequency);
         self.total_load = self.calculate_total_metric(|d| &d.load);
 
@@ -229,7 +258,13 @@ impl Cpu {
     // average maximum temperature across all cores
     fn calculate_maximums(&mut self) {
         self.maximum_temperature = self.calculate_maximum_metric(|d| &d.temperature);
-        self.maximum_power = self.power.last().unwrap().maximum;
+
+        if self.power.len() > 0 {
+            self.maximum_power = self.power.last().unwrap().maximum;
+        } else {
+            self.maximum_power = 0.0;
+        }
+
         self.maximum_frequency = self.calculate_maximum_metric(|d| &d.frequency);
     }
 
@@ -243,10 +278,8 @@ impl Cpu {
 
     fn calculate_total_metric<F>(&self, metric_selector: F) -> f32
         where
-            F: Fn(&CpuThread) -> &Vec<Data>,
+            F: Fn(&CpuThread) -> &VecDeque<Data>,
     {
-        let core_count = self.cores.len() as f32;
-
         self.cores
             .iter()
             .map(|core| &core.threads)
@@ -255,21 +288,19 @@ impl Cpu {
                 let metric = metric_selector(thread);
 
                 if !metric.is_empty() {
-                    metric.last().unwrap().current
+                    metric.iter().last().unwrap().current
                 } else {
                     0.0
                 }
             })
             .sum::<f32>()
-            / core_count
+            / self.logical_processor_count as f32
     }
 
     fn calculate_maximum_metric<F>(&self, metric_selector: F) -> f32
         where
-            F: Fn(&CpuThread) -> &Vec<Data>,
+            F: Fn(&CpuThread) -> &VecDeque<Data>,
     {
-        let core_count = self.cores.len() as f32;
-
         self.cores
             .iter()
             .map(|core| &core.threads)
@@ -278,21 +309,19 @@ impl Cpu {
                 let metric = metric_selector(thread);
 
                 if !metric.is_empty() {
-                    metric.last().unwrap().maximum
+                    metric.iter().last().unwrap().maximum
                 } else {
                     0.0
                 }
             })
             .sum::<f32>()
-            / core_count
+            / self.logical_processor_count as f32
     }
 
     fn calculate_average_metric<F>(&self, metric_selector: F) -> f32
         where
-            F: Fn(&CpuThread) -> &Vec<Data>,
+            F: Fn(&CpuThread) -> &VecDeque<Data>,
     {
-        let core_count = self.cores.len() as f32;
-
         self.cores
             .iter()
             .map(|core| &core.threads)
@@ -308,10 +337,10 @@ impl Cpu {
                 }
             })
             .sum::<f32>()
-            / core_count
+            / self.logical_processor_count as f32
     }
 
-    pub fn view_small(&self) -> Element<Message> {
+    pub(crate) fn view_small(&self, celsius: bool) -> Element<Message> {
         Button::new(
             Row::new()
                 .align_items(Alignment::Center)
@@ -320,7 +349,7 @@ impl Cpu {
                     Container::new(
                         self.load_graph.view()
                     )
-                        .style(theme::Container::Custom(Box::new(GraphBox { color: (0, 255, 255) })))
+                        .style(theme::Container::Custom(Box::new(GraphBox::new((0, 255, 255)))))
                         .width(Length::Fixed(70.0))
                         .height(Length::Fixed(60.0))
                 )
@@ -329,7 +358,13 @@ impl Cpu {
                     Column::new().spacing(3)
                         .push(Text::new("CPU"))
                         .push(Text::new(&self.name).size(14))
-                        .push(Text::new(format!("{:.0}%  {:.2} GHz  ({:.0}°C)", self.total_load, self.total_frequency / 1000.0, self.total_temperature)).size(14))
+                        .push(Text::new(
+                            if celsius {
+                                format!("{:.0}%  {:.2} GHz  ({:.0}°C)", self.total_load, self.total_frequency / 1000.0, self.total_temperature)
+                            } else {
+                                format!("{:.0}%  {:.2} GHz  ({:.0}°F)", self.total_load, self.total_frequency / 1000.0, self.total_temperature * 1.8 + 32.0)
+                            }
+                        ).size(14))
                 ),
         )
             .on_press(Message::Navigate(Route::Cpu))
@@ -339,7 +374,7 @@ impl Cpu {
             .into()
     }
 
-    pub fn view_large(&self) -> Element<Message> {
+    pub(crate) fn view_large(&self, celsius: bool) -> Element<Message> {
         let thread_count = self.cores.iter().map(|c| c.thread_count).sum::<usize>();
         let row_count = calculate_rows(thread_count);
 
@@ -377,6 +412,7 @@ impl Cpu {
                                        Rc::new(PickListStyle),
                                    )
                                )
+                               .padding(5)
                     )
                     .push(Space::new(Length::Fill, Length::Shrink))
                     .push(Text::new(&self.name)) // name of cpu display
@@ -402,6 +438,20 @@ impl Cpu {
             .push(
                 Row::new() // text stats
                     .spacing(20)
+                    .push(
+                        Column::new()
+                            .spacing(5)
+                            .push(
+                                Column::new()
+                                    .push(Text::new("Cores").size(16))
+                                    .push(Text::new(self.core_count.to_string()).size(24))
+                            )
+                            .push(
+                                Column::new()
+                                    .push(Text::new("Logical Processors").size(16))
+                                    .push(Text::new(self.logical_processor_count.to_string()).size(24))
+                            )
+                    )
                     .push(
                         Column::new()
                             .spacing(5)
@@ -441,17 +491,35 @@ impl Cpu {
                             .push(
                                 Column::new()
                                     .push(Text::new("Temperature").size(16))
-                                    .push(Text::new(format!("{:.0}°C", self.total_temperature)).size(24))
+                                    .push(Text::new(
+                                        if celsius {
+                                            format!("{:.0}°C", self.total_temperature)
+                                        } else {
+                                            format!("{:.0}°F", self.total_temperature * 1.8 + 32.0)
+                                        }
+                                    ).size(24))
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Temperature").size(16))
-                                    .push(Text::new(format!("{:.0}°C", self.maximum_temperature)).size(24))
+                                    .push(Text::new(
+                                        if celsius {
+                                            format!("{:.0}°C", self.maximum_temperature)
+                                        } else {
+                                            format!("{:.0}°F", self.maximum_temperature * 1.8 + 32.0)
+                                        }
+                                    ).size(24))
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Average Temperature").size(16))
-                                    .push(Text::new(format!("{:.0}°C", self.average_temperature)).size(24))
+                                    .push(Text::new(
+                                        if celsius {
+                                        format!("{:.0}°C", self.average_temperature)
+                                    } else {
+                                        format!("{:.0}°F", self.average_temperature * 1.8 + 32.0)
+                                    }
+                                    ).size(24))
                             )
                     )
                     .push(
@@ -516,7 +584,7 @@ fn create_graph_elements(cores: &[CpuCore], graph_state: GraphState) -> Vec<Elem
 
             Element::new(
                 Container::new(graph.view())
-                    .style(theme::Container::Custom(Box::new(GraphBox { color })))
+                    .style(theme::Container::Custom(Box::new(GraphBox::new(color))))
                     .width(Length::FillPortion(1))
                     .height(Length::FillPortion(1)),
             )

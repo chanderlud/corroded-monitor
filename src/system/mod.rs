@@ -12,23 +12,27 @@ use crate::{CreateHardwareMonitor, GetReport, UpdateHardwareMonitor};
 use crate::cpu::Cpu;
 use crate::gpu::Gpu;
 use crate::ram::Ram;
+use crate::storage::Storage;
+use crate::system::network::NetworkAdapter;
 
-pub mod gpu;
-pub mod ram;
-pub mod cpu;
+pub(crate) mod gpu;
+pub(crate) mod ram;
+pub(crate) mod cpu;
+pub(crate) mod storage;
+pub(crate) mod network;
 
 // a wrapper around the hardware monitor reference
 #[derive(Debug)]
-pub struct HardwareMonitor {
+pub(crate) struct HardwareMonitor {
     pub(crate) inner: *mut c_void,
 }
 
-// this is okay because the hardware monitor is always inside a Arc<Mutex<T>>
+// this is okay because the hardware monitor is always used inside a Arc<Mutex<T>>
 unsafe impl Send for HardwareMonitor {}
 
 impl HardwareMonitor {
     // asynchronously create a new hardware monitor reference
-    pub async fn new() -> Arc<Mutex<Self>> {
+    pub(crate) async fn new() -> Arc<Mutex<Self>> {
         spawn_blocking(|| {
             let inner = unsafe { CreateHardwareMonitor() };
             Arc::new(Mutex::new(Self { inner }))
@@ -38,42 +42,94 @@ impl HardwareMonitor {
 
 // the main structure that contains the hardware widgets
 #[derive(Debug, Clone)]
-pub struct SystemStats {
-    pub cpu: Cpu,
-    pub gpu: Gpu,
-    pub ram: Ram,
+pub(crate) struct SystemStats {
+    // multiple CPUs is rare, not supported
+    pub(crate) cpu: Cpu,
+    // support multiple GPUs
+    pub(crate) gpus: Vec<Gpu>,
+    pub(crate) ram: Ram,
+    pub(crate) disks: Vec<Storage>, // support multiple disks
+    pub(crate) network_adapters: Vec<NetworkAdapter>
 }
 
 impl SystemStats {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             cpu: Cpu::new(),
-            gpu: Gpu::new(),
+            gpus: Vec::new(),
             ram: Ram::new(),
+            disks: Vec::new(),
+            network_adapters: Vec::new(),
         }
     }
 
     // update stats
-    pub async fn update(mut self, monitor: Arc<Mutex<HardwareMonitor>>) -> Self {
+    pub(crate) async fn update(mut self, monitor: Arc<Mutex<HardwareMonitor>>) -> Self {
+        // fetch data from OHM API, spawn_blocking is used to prevent blocking
         let hardware_data: serde_json::Result<Vec<Hardware>> = spawn_blocking({
             move || {
-                let ptr = monitor.blocking_lock().inner;
-                unsafe { UpdateHardwareMonitor(ptr) };
+                let ptr = monitor.blocking_lock().inner; // lock pointer to OHM
+                unsafe { UpdateHardwareMonitor(ptr) }; // update OHM
 
-                let mut buffer: Vec<c_char> = vec![0; 20000];
+                let mut buffer: Vec<c_char> = vec![0; 20000]; // allocate buffer for data
 
-                unsafe { GetReport(ptr, buffer.as_mut_ptr(), buffer.len() as i32) };
+                unsafe { GetReport(ptr, buffer.as_mut_ptr(), buffer.len() as i32) }; // load data into buffer
 
-                let report = unsafe { CStr::from_ptr(buffer.as_ptr()) };
-                from_slice(report.to_bytes())
+                let report = unsafe { CStr::from_ptr(buffer.as_ptr()) }; // convert buffer to CStr
+                from_slice(report.to_bytes()) // deserialize CStr to Vec<Hardware>
             }
-        }).await.unwrap();
+        }).await.unwrap(); // unwrap thread, should never panic
 
         match hardware_data {
             Ok(data) => {
-                self.cpu.update(&data);
-                self.gpu.update(&data);
-                self.ram.update(&data);
+                let mut disk_index = 0;
+                let mut gpu_index = 0;
+                let mut network_index = 0;
+
+                // iterate over hardware devices
+                for device in data {
+                    match device.hardware_type {
+                        HardwareType::Cpu => {
+                            self.cpu.update(&device);
+                        }
+                        HardwareType::GpuNvidia | HardwareType::GpuAmd | HardwareType::GpuIntel => {
+                            // create new gpu if needed
+                            if self.gpus.len() == gpu_index {
+                                self.gpus.push(Gpu::new());
+                            }
+
+                            self.gpus[gpu_index].update(&device, gpu_index);
+                            gpu_index += 1;
+                        }
+                        HardwareType::Memory => {
+                            self.ram.update(&device);
+                        }
+                        HardwareType::Storage => {
+                            // create new disk if needed
+                            if self.disks.len() == disk_index {
+                                self.disks.push(Storage::new());
+                            }
+
+                            self.disks[disk_index].update(&device, disk_index);
+                            disk_index += 1;
+                        }
+                        HardwareType::Network => {
+                            // skip non-ethernet and non-wifi adapters
+                            if device.name != "Ethernet" && device.name != "Wi-Fi" {
+                                continue
+                            }
+
+                            // create network adapter if needed
+                            if self.network_adapters.len() == network_index {
+                                self.network_adapters.push(NetworkAdapter::new());
+                            }
+
+                            self.network_adapters[network_index].update(&device, network_index);
+                            network_index += 1;
+                        }
+                        _ => {}
+                    }
+                }
             }
             Err(e) => println!("an error occurred while fetching data from OHM API: {:?}", e)
         }
@@ -92,17 +148,16 @@ impl Drop for SystemStats {
 }
  */
 
-
 // the main data structure for the OHM API, represents a single hardware component
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
-pub struct Hardware {
+pub(crate) struct Hardware {
     // CPU, GPU, Memory, etc
     hardware_type: HardwareType,
     // a human readable name for the hardware
     name: String,
     // some hardware have sub-hardware
-    sub_hardware: Vec<Hardware>,
+    // sub_hardware: Vec<Hardware>,
     // the sensors for this hardware
     sensors: Vec<Sensor>,
 }
@@ -143,7 +198,7 @@ fn deserialize_f32_or_nan_as_zero<'de, D>(deserializer: D) -> Result<f32, D::Err
         }
 
         fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
-            if value.to_lowercase() == "nan" {
+            if value.to_lowercase() == "nan" || value.to_lowercase() == "infinity" {
                 Ok(0.0)
             } else {
                 Err(E::custom(format!("expected \"NaN\" or a float, got {}", value)))
@@ -194,7 +249,7 @@ impl<'de> Deserialize<'de> for HardwareType {
             10 => Ok(Self::EmbeddedController),
             11 => Ok(Self::Psu),
             12 => Ok(Self::Battery),
-            _ => Err(serde::de::Error::custom("Unexpected integer value for HardwareType"))
+            _ => Err(de::Error::custom("Unexpected integer value for HardwareType"))
         }
     }
 }
@@ -202,41 +257,42 @@ impl<'de> Deserialize<'de> for HardwareType {
 // sensor types
 #[derive(Debug, PartialEq)]
 pub(crate) enum SensorType {
-    Voltage,
     // V
-    Current,
+    Voltage,
     // A
-    Power,
+    Current,
     // W
-    Clock,
+    Power,
     // MHz
-    Temperature,
+    Clock,
     // °C
-    Load,
+    Temperature,
     // %
-    Frequency,
+    Load,
     // Hz
-    Fan,
+    Frequency,
     // RPM
-    Flow,
+    Fan,
     // L/h
+    Flow,
+    // %
     Control,
     // %
     Level,
-    // %
-    Factor,
     // 1
-    Data,
+    Factor,
     // GB = 2^30 Bytes
-    SmallData,
+    Data,
     // MB = 2^20 Bytes
-    Throughput,
+    SmallData,
     // B/s
-    TimeSpan,
+    Throughput,
     // Seconds
-    Energy,
+    TimeSpan,
     // milliwatt-hour (mWh)
-    Noise, // dBA
+    Energy,
+    // dBA
+    Noise,
 }
 
 // deserialize sensor type from int
@@ -272,7 +328,7 @@ impl<'de> Deserialize<'de> for SensorType {
 }
 
 // used in the hardware widgets to store data
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub(crate) struct Data {
     // minimum: f32,
     maximum: f32,
@@ -283,7 +339,7 @@ impl Data {
     // data from sensor
     fn from(value: &Sensor) -> Self {
         Self {
-            // minimum: value.min.unwrap_or(0.0),
+            // minimum: value.min,
             maximum: value.max,
             current: value.value,
         }
