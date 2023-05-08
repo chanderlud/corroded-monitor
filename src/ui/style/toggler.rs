@@ -11,9 +11,9 @@ impl toggler::StyleSheet for Toggler {
     fn active(&self, style: &Self::Style, _is_active: bool) -> Appearance {
         match style {
             Theme::Light => Appearance {
-                background: Color::from_rgb8(66, 67, 70).into(),
+                background:Color::from_rgb8(200, 200, 200).into(),
                 background_border: None,
-                foreground: Color::from_rgb8(0, 255, 255).into(),
+                foreground: Color::from_rgb8(183, 53, 90).into(),
                 foreground_border: None,
             },
             _ => Appearance {
@@ -28,9 +28,9 @@ impl toggler::StyleSheet for Toggler {
     fn hovered(&self, style: &Self::Style, _is_active: bool) -> Appearance {
         match style {
             Theme::Light => Appearance {
-                background: Color::from_rgb8(30, 30, 30).into(),
+                background: Color::from_rgb8(170, 170, 170).into(),
                 background_border: None,
-                foreground: Color::from_rgb8(0, 210, 210).into(),
+                foreground: Color::from_rgb8(153, 23, 60).into(),
                 foreground_border: None,
             },
             _ => Appearance {

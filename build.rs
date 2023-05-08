@@ -5,7 +5,7 @@ use bindgen;
 use embed_resource;
 
 fn main() {
-    println!("cargo:rustc-link-search=native={}", env::var("LIBRARY_PATH").unwrap());
+    println!("cargo:rustc-link-search=native=LibreHardwareMonitorAPI\\x64\\Release");
     println!("cargo:rustc-link-lib=dylib=ManagedLibreHardwareMonitorWrapper");
 
     let bindings = bindgen::Builder::default()

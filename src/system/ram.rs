@@ -118,6 +118,9 @@ impl Ram {
                                     .push(Text::new("Available").size(16))
                                     .push(Text::new(format!("{:.2} GB", self.available.current)).size(24))
                             )
+                    )
+                    .push(
+                        Column::new().spacing(5)
                             .push(
                                 Column::new()
                                     .push(Text::new("Used").size(16))

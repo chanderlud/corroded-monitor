@@ -6,6 +6,7 @@ use iced::{Alignment, Command, executor, Length, Padding, Subscription};
 use iced::{Application, Element};
 use iced::time::every;
 use iced::widget::{Button, Column, Container, PickList, Row, Scrollable, Space, Text, Toggler};
+use iced::widget::scrollable::Properties;
 use iced_style::{theme, Theme as IcedTheme};
 use tokio::sync::Mutex;
 
@@ -16,13 +17,14 @@ use crate::ui::{Message, Route, Theme};
 use crate::ui::style::button::SettingsButton;
 use crate::ui::style::container::{MainBox, SecondaryBox};
 use crate::ui::style::pick_list::PickList as PickListStyle;
+use crate::ui::style::scrollable::Scrollable as ScrollableStyle;
 use crate::ui::style::toggler::Toggler as TogglerStyle;
 
 pub(crate) struct App {
     route: Route,
     stats: SystemStats,
     monitor: Option<Arc<Mutex<HardwareMonitor>>>,
-    config: Config
+    config: Config,
 }
 
 impl From<Config> for App {
@@ -31,7 +33,7 @@ impl From<Config> for App {
             route: Route::Cpu,
             stats: SystemStats::new(),
             monitor: None, // monitor is initialized asynchronously later
-            config
+            config,
         }
     }
 }
@@ -153,48 +155,50 @@ impl Application for App {
         }
 
 
-
         Row::new()
             .width(Length::Fill)
             .height(Length::Fill)
             .push(
                 Container::new(
-                    Column::new()
-                        .push(
-                            Scrollable::new( // TODO style scroll
-                                Column::new()
-                                    .push(self.stats.cpu.view_small(self.config.celsius))
-                                    .push(gpu_items)
-                                    .push(self.stats.ram.view_small())
-                                    .push(disk_items)
-                                    .push(network_items)
-                            )
-                        )
-                        .push(Space::new(Length::Fill, Length::Fill))
-                        .push( // TODO new settings button location
-                            Row::new()
-                                .push(Space::new(Length::FillPortion(1), Length::Shrink))
-                                .push(
-                                    Button::new(
-                                        Column::new()
-                                            .push(Space::new(Length::Fill, Length::Fill))
-                                            .push(
-                                                Row::new()
-                                                    .push(Space::new(Length::Fill, Length::Shrink))
-                                                    .push(Text::new("Settings"))
-                                                    .push(Space::new(Length::Fill, Length::Shrink))
-                                            )
-                                            .push(Space::new(Length::Fill, Length::Fill))
+                    Scrollable::new(
+                        Column::new()
+                            .push(self.stats.cpu.view_small(self.config.celsius))
+                            .push(gpu_items)
+                            .push(self.stats.ram.view_small())
+                            .push(disk_items)
+                            .push(network_items)
+                            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
+                            .push(
+                                Row::new()
+                                    .push(Space::new(Length::FillPortion(1), Length::Shrink))
+                                    .push(
+                                        Button::new(
+                                            Column::new()
+                                                .push(Space::new(Length::Fill, Length::Fill))
+                                                .push(
+                                                    Row::new()
+                                                        .push(Space::new(Length::Fill, Length::Shrink))
+                                                        .push(Text::new("Settings"))
+                                                        .push(Space::new(Length::Fill, Length::Shrink))
+                                                )
+                                                .push(Space::new(Length::Fill, Length::Fill))
+                                        )
+                                            .on_press(Message::Navigate(Route::Settings))
+                                            .style(theme::Button::Custom(Box::new(SettingsButton)))
+                                            .width(Length::FillPortion(3))
+                                            .height(Length::Fixed(50.0))
+                                            .padding(Padding::new(10.0))
                                     )
-                                        .on_press(Message::Navigate(Route::Settings))
-                                        .style(theme::Button::Custom(Box::new(SettingsButton)))
-                                        .width(Length::FillPortion(3))
-                                        .height(Length::Fixed(50.0))
-                                        .padding(Padding::new(10.0))
-                                )
-                                .push(Space::new(Length::FillPortion(1), Length::Shrink))
+                                    .push(Space::new(Length::FillPortion(1), Length::Shrink))
+                            )
+                            .push(Space::new(Length::Fill, Length::Fixed(20.0)))
+                    )
+                        .style(theme::Scrollable::Custom(Box::new(ScrollableStyle)))
+                        .vertical_scroll(
+                            Properties::new()
+                                .scroller_width(6)
+                                .margin(0.5)
                         )
-                        .push(Space::new(Length::Fill, Length::Fixed(20.0)))
                 ).style(theme::Container::Custom(Box::new(SecondaryBox))).height(Length::Fill).width(Length::Fixed(300.0))
             )
             .push(

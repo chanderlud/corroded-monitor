@@ -133,9 +133,9 @@ impl Storage {
                         .push(Text::new(&self.name).size(14))
                         .push(Text::new(
                             if celsius {
-                                format!("{:.2}% {:.2} MB/s ({:.0}°C)", self.activity.current, (self.read_rate.current + self.write_rate.current) / 1_000_000_f32, self.temperature.current)
+                                format!("{:.0}% {:.0} MB/s ({:.0}°C)", self.activity.current, (self.read_rate.current + self.write_rate.current) / 1_000_000_f32, self.temperature.current)
                             } else {
-                                format!("{:.2}% {:.2} MB/s ({:.0}°F)", self.activity.current, (self.read_rate.current + self.write_rate.current) / 1_000_000_f32, self.temperature.current * 1.8 + 32.0)
+                                format!("{:.0}% {:.0} MB/s ({:.0}°F)", self.activity.current, (self.read_rate.current + self.write_rate.current) / 1_000_000_f32, self.temperature.current * 1.8 + 32.0)
                             }
                         )
                             .size(14)
@@ -242,6 +242,9 @@ impl Storage {
                                     .push(Text::new("Used Capacity").size(16))
                                     .push(Text::new(format!("{:.2}%", self.used_capacity.current)).size(24))
                             )
+                    )
+                    .push(
+                        Column::new().spacing(5)
                             .push(
                                 Column::new()
                                     .push(Text::new("Temperature").size(16))
@@ -261,6 +264,9 @@ impl Storage {
                                     .push(Text::new("Data Read").size(16))
                                     .push(Text::new(format!("{:.0} TB", self.data_read.current / 1_000_f32)).size(24))
                             )
+                    )
+                    .push(
+                        Column::new().spacing(5)
                             .push(
                                 Column::new()
                                     .push(Text::new("Data Written").size(16))
@@ -271,18 +277,24 @@ impl Storage {
                         Column::new().spacing(5)
                             .push(
                                 Column::new()
-                                    .push(Text::new("Read Rate").size(16))
-                                    .push(Text::new(format!("{:.2} MB/s", self.read_rate.current / 1_000_000_f32)).size(24))
+                                    .push(Text::new("Disk Activity").size(16))
+                                    .push(Text::new(format!("{:.1}%", self.activity.current)).size(24))
                             )
+                    )
+                    .push(
+                        Column::new().spacing(5)
+                            .push(
+                                Column::new()
+                                    .push(Text::new("Read Rate").size(16))
+                                    .push(Text::new(format!("{:.1} MB/s", self.read_rate.current / 1_000_000_f32)).size(24))
+                            )
+                    )
+                    .push(
+                        Column::new().spacing(5)
                             .push(
                                 Column::new()
                                     .push(Text::new("Write Rate").size(16))
-                                    .push(Text::new(format!("{:.2} MB/s", self.write_rate.current / 1_000_000_f32)).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Disk Activity").size(16))
-                                    .push(Text::new(format!("{:.2}%", self.activity.current)).size(24))
+                                    .push(Text::new(format!("{:.1} MB/s", self.write_rate.current / 1_000_000_f32)).size(24))
                             )
                     )
             )

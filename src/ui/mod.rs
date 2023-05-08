@@ -97,7 +97,7 @@ fn settings() -> Settings<Config> {
         window: Window {
             size: (1300, 700),
             position: Default::default(),
-            min_size: Some((1000, 500)),
+            min_size: Some((1060, 500)),
             max_size: None,
             visible: true,
             resizable: true,

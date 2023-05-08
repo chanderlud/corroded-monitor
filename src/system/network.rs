@@ -84,7 +84,7 @@ impl NetworkAdapter {
                     Column::new().spacing(3) // this is the text on the right side of the graph with stats summary
                         .push(Text::new(format!("Network {}", self.index)))
                         .push(Text::new(&self.name).size(14))
-                        .push(Text::new(format!("{:.2}% {:.2} MB/s", self.utilization.current, (self.upload_speed.current + self.download_speed.current) / 1_000_000_f32)).size(14))
+                        .push(Text::new(format!("{:.0}% {:.0} MB/s", self.utilization.current, (self.upload_speed.current + self.download_speed.current) / 1_000_000_f32)).size(14))
                 )
         )
             .on_press(Message::Navigate(Route::Network(self.index))) // opens the gpu page when pressed
@@ -131,9 +131,28 @@ impl NetworkAdapter {
                         Column::new().spacing(5)
                             .push(
                                 Column::new()
+                                    .push(Text::new("Downloaded").size(16))
+                                    .push(Text::new(format!("{:.1} GB", self.downloaded.current)).size(24))
+                            )
+                    )
+                    .push(
+                        Column::new().spacing(5)
+                            .push(
+                                Column::new()
+                                    .push(Text::new("Uploaded").size(16))
+                                    .push(Text::new(format!("{:.1} GB", self.uploaded.current)).size(24))
+                            )
+                    )
+                    .push(
+                        Column::new().spacing(5)
+                            .push(
+                                Column::new()
                                     .push(Text::new("Download Speed").size(16))
                                     .push(Text::new(format!("{:.2} MB/s", self.download_speed.current / 1_000_000_f32)).size(24))
                             )
+                    )
+                    .push(
+                        Column::new().spacing(5)
                             .push(
                                 Column::new()
                                     .push(Text::new("Upload Speed").size(16))
@@ -144,21 +163,8 @@ impl NetworkAdapter {
                         Column::new().spacing(5)
                             .push(
                                 Column::new()
-                                    .push(Text::new("Downloaded").size(16))
-                                    .push(Text::new(format!("{:.0} GB", self.downloaded.current)).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Uploaded").size(16))
-                                    .push(Text::new(format!("{:.0} GB", self.uploaded.current)).size(24))
-                            )
-                    )
-                    .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
                                     .push(Text::new("Utilization").size(16))
-                                    .push(Text::new(format!("{:.2}%", self.utilization.current)).size(24))
+                                    .push(Text::new(format!("{:.1}%", self.utilization.current)).size(24))
                             )
                     )
             )
