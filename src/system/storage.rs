@@ -39,7 +39,7 @@ impl std::fmt::Display for GraphState {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Storage {
-    name: String,
+    pub(crate) name: String,
     index: usize,
     read_rate: Data,
     read_graph: LineGraph,

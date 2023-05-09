@@ -116,7 +116,7 @@ impl CpuCore {
 // the cpu widget
 #[derive(Debug, Clone)]
 pub(crate) struct Cpu {
-    name: String,
+    pub(crate) name: String,
     cores: Vec<CpuCore>,
     total_temperature: f32,
     total_frequency: f32,

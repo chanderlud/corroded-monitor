@@ -10,16 +10,18 @@ use crate::ui::style::container::GraphBox;
 // ram widget
 #[derive(Debug, Clone)]
 pub(crate) struct Ram {
-    pub(crate) usage: Data,
-    pub(crate) used: Data,
-    pub(crate) available: Data,
-    pub(crate) total: f32,
+    pub(crate) name: String,
+    usage: Data,
+    used: Data,
+    available: Data,
+    total: f32,
     load_graph: LineGraph,
 }
 
 impl Ram {
     pub(crate) fn new() -> Self { // ram widget with default state
         Self {
+            name: String::new(),
             usage: Data::default(),
             used: Data::default(),
             available: Data::default(),
@@ -30,20 +32,19 @@ impl Ram {
 
     // parse data for gpu from the OHM API
     pub(crate) fn update(&mut self, hardware_data: &Hardware) {
+        for sensor in &hardware_data.sensors {
+            let data = Data::from(sensor);
 
-    for sensor in &hardware_data.sensors {
-        let data = Data::from(sensor);
-
-        match sensor.name.as_str() {
-            "Memory Used" => self.used = data,
-            "Memory Available" => self.available = data,
-            "Memory" => {
-                self.usage = data;
-                self.load_graph.push_data(self.usage.current);
+            match sensor.name.as_str() {
+                "Memory Used" => self.used = data,
+                "Memory Available" => self.available = data,
+                "Memory" => {
+                    self.usage = data;
+                    self.load_graph.push_data(self.usage.current);
+                }
+                _ => {}
             }
-            _ => {}
         }
-    }
 
         self.total = self.used.current + self.available.current;
     }

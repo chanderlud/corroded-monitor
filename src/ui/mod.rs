@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::sync::Arc;
 
@@ -6,17 +7,16 @@ use iced::Settings;
 use iced::window::{PlatformSpecific, Settings as Window};
 use iced::window::icon::from_rgba;
 use image::load_from_memory;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use serde::{Serialize, Deserialize};
 
 use crate::config::Config;
-
 use crate::system::{HardwareMonitor, SystemStats};
 use crate::ui::app::App;
 
-pub mod style;
+pub(crate) mod style;
 mod app;
-pub mod chart;
+pub(crate) mod chart;
 
 const ICON: &[u8] = include_bytes!("../../icon.ico");
 
@@ -38,6 +38,7 @@ impl Theme {
     ];
 }
 
+// implement display for theme dropdown
 impl Display for Theme {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}",
@@ -55,7 +56,7 @@ pub(crate) enum Message {
     // emitted every second to update the stats
     Update,
     // message contains the updated stats object
-    UpdateCompleted(SystemStats),
+    UpdateCompleted((SystemStats, HashMap<String, bool>)),
     // message contains the hardware monitor reference
     MonitorCreated(Arc<Mutex<HardwareMonitor>>),
     // message for navigating between pages
@@ -70,6 +71,8 @@ pub(crate) enum Message {
     ThemeChanged(Theme),
     // temperature unit changed
     TemperatureUnitChanged,
+    // visibility changed
+    VisibilityChanged((String, bool)),
 }
 
 // GUI routes

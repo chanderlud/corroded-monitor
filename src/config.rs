@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::fs::File;
 use std::io;
@@ -41,10 +42,11 @@ impl Display for Error {
 }
 
 // configuration options
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub(crate) struct Config {
     pub(crate) theme: Theme,
     pub(crate) celsius: bool,
+    pub(crate) visibility: HashMap<String, bool>
 }
 
 // default options
@@ -53,7 +55,14 @@ impl Default for Config {
         Self {
             theme: Theme::System,
             celsius: true,
+            visibility: Default::default()
         }
+    }
+}
+
+impl Config {
+    pub(crate) fn is_visible(&self, name: &str) -> bool {
+        *self.visibility.get(name).unwrap_or(&true)
     }
 }
 

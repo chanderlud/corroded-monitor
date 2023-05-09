@@ -9,7 +9,7 @@ use crate::ui::style::container::GraphBox;
 
 #[derive(Debug, Clone)]
 pub(crate) struct NetworkAdapter {
-    name: String,
+    pub(crate) name: String,
     index: usize,
     utilization: Data,
     download_speed: Data,

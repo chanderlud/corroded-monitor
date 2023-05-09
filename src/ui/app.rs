@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -18,7 +19,7 @@ use crate::ui::style::button::SettingsButton;
 use crate::ui::style::container::{MainBox, SecondaryBox};
 use crate::ui::style::pick_list::PickList as PickListStyle;
 use crate::ui::style::scrollable::Scrollable as ScrollableStyle;
-use crate::ui::style::toggler::Toggler as TogglerStyle;
+use crate::ui::style::toggler::{Toggler as TogglerStyle, VisibilityToggler};
 
 pub(crate) struct App {
     route: Route,
@@ -64,7 +65,7 @@ impl Application for App {
                 }
                 None => Command::none() // hardware monitor is not created yet
             },
-            Message::UpdateCompleted(mut updated_stats) => {
+            Message::UpdateCompleted((mut updated_stats, new_visibility)) => {
                 // in case the graph states have changed since the update began
                 updated_stats.cpu.graph_state = self.stats.cpu.graph_state;
 
@@ -83,6 +84,13 @@ impl Application for App {
                 }
 
                 self.stats = updated_stats;
+
+                if !new_visibility.is_empty() {
+                    // merges maps without overwriting data in config
+                    merge_maps(&mut self.config.visibility, &new_visibility);
+                    self.config.save().expect("Failed to save config");
+                }
+
                 Command::none()
             }
             Message::MonitorCreated(monitor) => {
@@ -131,29 +139,61 @@ impl Application for App {
                 self.config.save().expect("Failed to save config");
                 Command::none()
             }
+            Message::VisibilityChanged((name, visible)) => {
+                self.config.visibility.insert(name, visible);
+                Command::none()
+            }
         }
     }
 
     // the base of the GUI
     fn view(&self) -> Element<'_, Self::Message> {
-        let mut gpu_items = Column::new();
+        let mut side_bar = Column::new();
+
+        if self.config.is_visible(&self.stats.cpu.name) {
+            side_bar = side_bar.push(self.stats.cpu.view_small(self.config.celsius));
+        }
 
         for gpu in &self.stats.gpus {
-            gpu_items = gpu_items.push(gpu.view_small(self.config.celsius));
+            if self.config.is_visible(&gpu.name) {
+                side_bar = side_bar.push(gpu.view_small(self.config.celsius));
+            }
         }
 
-        let mut disk_items = Column::new();
+        if self.config.is_visible(&self.stats.ram.name) {
+            side_bar = side_bar.push(self.stats.ram.view_small());
+        }
 
         for disk in &self.stats.disks {
-            disk_items = disk_items.push(disk.view_small(self.config.celsius));
+            if self.config.is_visible(&disk.name) {
+                side_bar = side_bar.push(disk.view_small(self.config.celsius));
+            }
         }
-
-        let mut network_items = Column::new();
 
         for adapter in &self.stats.network_adapters {
-            network_items = network_items.push(adapter.view_small());
+            if self.config.is_visible(&adapter.name) {
+                side_bar = side_bar.push(adapter.view_small());
+            }
         }
 
+        let mut visibility_options = Column::new().spacing(10);
+
+        for (name, visible) in self.config.visibility.iter() {
+            visibility_options = visibility_options.push(
+                Row::new().width(Length::Shrink)
+                    .push(Text::new(name))
+                    .push(Space::new(Length::Fixed(15.0), Length::Shrink))
+                    .push(
+                        Toggler::new(
+                            None,
+                            *visible,
+                            |visible| Message::VisibilityChanged((name.clone(), visible)))
+                            .style(theme::Toggler::Custom(Box::new(VisibilityToggler)))
+                            .width(Length::Shrink)
+                    )
+                    .push(Space::new(Length::Fixed(20.0), Length::Shrink))
+            );
+        }
 
         Row::new()
             .width(Length::Fill)
@@ -161,12 +201,7 @@ impl Application for App {
             .push(
                 Container::new(
                     Scrollable::new(
-                        Column::new()
-                            .push(self.stats.cpu.view_small(self.config.celsius))
-                            .push(gpu_items)
-                            .push(self.stats.ram.view_small())
-                            .push(disk_items)
-                            .push(network_items)
+                        side_bar
                             .push(Space::new(Length::Fill, Length::Fixed(10.0)))
                             .push(
                                 Row::new()
@@ -213,48 +248,56 @@ impl Application for App {
                         .style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill),
                     Route::Network(index) => Container::new(self.stats.network_adapters[index].view_large())
                         .style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill),
-                    Route::Settings => {
-                        Container::new(
-                            Column::new()
-                                .padding(20)
-                                .spacing(10)
-                                .push(
-                                    Row::new()
-                                        .height(Length::Fixed(30.0))
-                                        .push(Text::new("Settings").size(28))
-                                )
-                                .push(Space::new(Length::Fill, Length::Fixed(10.0)))
-                                .push(
-                                    Row::new()
-                                        .spacing(10)
-                                        .align_items(Alignment::Center)
-                                        .push(Text::new("Theme").size(20))
-                                        .push(
-                                            PickList::new(&Theme::ALL[..], Some(self.config.theme), Message::ThemeChanged)
-                                                .style(
-                                                    theme::PickList::Custom(
-                                                        Rc::new(PickListStyle),
-                                                        Rc::new(PickListStyle),
-                                                    )
+                    Route::Settings => Container::new(
+                        Column::new()
+                        .padding(20)
+                            .spacing(10)
+                            .push(
+                                Row::new()
+                                    .height(Length::Fixed(30.0))
+                                    .push(Text::new("Settings").size(28))
+                            )
+                            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
+                            .push(
+                                Row::new()
+                                    .spacing(10)
+                                    .align_items(Alignment::Center)
+                                    .push(Text::new("Theme").size(20))
+                                    .push(
+                                        PickList::new(&Theme::ALL[..], Some(self.config.theme), Message::ThemeChanged)
+                                            .style(
+                                                theme::PickList::Custom(
+                                                    Rc::new(PickListStyle),
+                                                    Rc::new(PickListStyle),
                                                 )
-                                                .padding(5)
-                                        )
-                                )
-                                .push(
-                                    Row::new()
-                                        .spacing(10)
-                                        .align_items(Alignment::Center)
-                                        .push(Text::new("Fahrenheit").size(20))
-                                        .push(
-                                            Toggler::new(None, self.config.celsius, |_| { Message::TemperatureUnitChanged })
-                                                .width(Length::Shrink)
-                                                .style(theme::Toggler::Custom(Box::new(TogglerStyle)))
-                                        )
-                                        .push(Text::new("Celsius").size(20))
-                                )
-                        )
-                            .style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill)
-                    } // TODO overlay settings
+                                            )
+                                            .padding(5)
+                                    )
+                            )
+                            .push(
+                                Row::new()
+                                    .spacing(10)
+                                    .align_items(Alignment::Center)
+                                    .push(Text::new("Fahrenheit").size(20))
+                                    .push(
+                                        Toggler::new(None, self.config.celsius, |_| { Message::TemperatureUnitChanged })
+                                            .width(Length::Shrink)
+                                            .style(theme::Toggler::Custom(Box::new(TogglerStyle)))
+                                    )
+                                    .push(Text::new("Celsius").size(20))
+                            )
+                            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
+                            .push(Text::new("Visibility").size(28))
+                            .push(
+                                Scrollable::new(visibility_options)
+                                    .style(theme::Scrollable::Custom(Box::new(ScrollableStyle)))
+                                    .vertical_scroll(
+                                        Properties::new()
+                                            .scroller_width(6)
+                                            .margin(0.5)
+                                    )
+                            )
+                    ).style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill)
                 }
             )
             .into()
@@ -274,5 +317,11 @@ impl Application for App {
     // update the stats every second
     fn subscription(&self) -> Subscription<Message> {
         every(Duration::from_millis(1000)).map(|_| Message::Update)
+    }
+}
+
+fn merge_maps(map1: &mut HashMap<String, bool>, map2: &HashMap<String, bool>) {
+    for (key, value) in map2 {
+        map1.entry(key.clone()).or_insert(*value);
     }
 }

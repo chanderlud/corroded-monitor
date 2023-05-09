@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::{c_char, c_void, CStr};
 use std::fmt;
 use std::sync::Arc;
@@ -64,7 +65,7 @@ impl SystemStats {
     }
 
     // update stats
-    pub(crate) async fn update(mut self, monitor: Arc<Mutex<HardwareMonitor>>) -> Self {
+    pub(crate) async fn update(mut self, monitor: Arc<Mutex<HardwareMonitor>>) -> (Self, HashMap<String, bool>) {
         // fetch data from OHM API, spawn_blocking is used to prevent blocking
         let hardware_data: serde_json::Result<Vec<Hardware>> = spawn_blocking({
             move || {
@@ -80,6 +81,8 @@ impl SystemStats {
             }
         }).await.unwrap(); // unwrap thread, should never panic
 
+        let mut visibility = HashMap::new();
+
         match hardware_data {
             Ok(data) => {
                 let mut disk_index = 0;
@@ -90,11 +93,16 @@ impl SystemStats {
                 for device in data {
                     match device.hardware_type {
                         HardwareType::Cpu => {
+                            if self.cpu.name.is_empty() {
+                                visibility.insert(device.name.clone(), true);
+                            }
+
                             self.cpu.update(&device);
                         }
                         HardwareType::GpuNvidia | HardwareType::GpuAmd | HardwareType::GpuIntel => {
                             // create new gpu if needed
                             if self.gpus.len() == gpu_index {
+                                visibility.insert(device.name.clone(), true);
                                 self.gpus.push(Gpu::new());
                             }
 
@@ -102,11 +110,16 @@ impl SystemStats {
                             gpu_index += 1;
                         }
                         HardwareType::Memory => {
+                            if self.ram.name.is_empty() {
+                                visibility.insert(device.name.clone(), true);
+                            }
+
                             self.ram.update(&device);
                         }
                         HardwareType::Storage => {
                             // create new disk if needed
                             if self.disks.len() == disk_index {
+                                visibility.insert(device.name.clone(), true);
                                 self.disks.push(Storage::new());
                             }
 
@@ -114,13 +127,9 @@ impl SystemStats {
                             disk_index += 1;
                         }
                         HardwareType::Network => {
-                            // skip non-ethernet and non-wifi adapters
-                            if device.name != "Ethernet" && device.name != "Wi-Fi" {
-                                continue
-                            }
-
                             // create network adapter if needed
                             if self.network_adapters.len() == network_index {
+                                visibility.insert(device.name.clone(), true);
                                 self.network_adapters.push(NetworkAdapter::new());
                             }
 
@@ -134,7 +143,7 @@ impl SystemStats {
             Err(e) => println!("an error occurred while fetching data from OHM API: {:?}", e)
         }
 
-        self
+        (self, visibility)
     }
 }
 
