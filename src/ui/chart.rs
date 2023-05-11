@@ -13,7 +13,7 @@ pub(crate) struct LineGraph {
     // data
     data_points: VecDeque<(i32, i32)>,
     // color of the line
-    color: RGBColor,
+    color: (u8, u8, u8),
     // max value of the graph
     pub(crate) maximum_value: i32,
     // iterator for the x axis
@@ -24,7 +24,7 @@ impl LineGraph {
     pub(crate) fn new(color: (u8, u8, u8)) -> Self {
         Self {
             data_points: VecDeque::with_capacity(102),
-            color: RGBColor(color.0, color.1, color.2),
+            color,
             maximum_value: 100,
             iterator: 0,
         }
@@ -69,6 +69,8 @@ impl Chart<Message> for LineGraph {
     fn build_chart<DB: DrawingBackend>(&self, _state: &Self::State, mut chart: ChartBuilder<DB>) {
         use plotters::prelude::*;
 
+        let color = RGBColor(self.color.0, self.color.1, self.color.2);
+
         let newest = self.data_points.front().unwrap_or(&(0, 0)).0;
         let oldest = self.data_points.back().unwrap_or(&(0, 0)).0;
 
@@ -89,11 +91,10 @@ impl Chart<Message> for LineGraph {
                 AreaSeries::new(
                     self.data_points.iter().map(|x| (x.0, x.1)),
                     0,
-                    &self.color.mix(0.03), // the partially transparent area under the line
+                    &color.mix(0.03), // the partially transparent area under the line
                 )
                     .border_style(
-                        ShapeStyle::from(&self.
-                            color)
+                        ShapeStyle::from(&color)
                             .stroke_width(1)
                     ),
             )
