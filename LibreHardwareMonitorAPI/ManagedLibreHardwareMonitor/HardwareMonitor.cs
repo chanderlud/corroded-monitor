@@ -9,6 +9,7 @@ namespace ManagedLibreHardwareMonitor
     {
         private Computer _computer;
 
+        // constructor initializes the computer object and its properties
         public HardwareMonitor()
         {
             _computer = new Computer
@@ -22,15 +23,18 @@ namespace ManagedLibreHardwareMonitor
                 IsStorageEnabled = true
             };
 
+            // open connection to the computer and update hardware information
             _computer.Open();
             _computer.Accept(new UpdateVisitor());
         }
 
+        // update the hardware information
         public void Update()
         {
             _computer.Accept(new UpdateVisitor());
         }
 
+        // get a JSON report of the hardware information
         public string GetReport()
         {
             Hardware[] parsed_hardware = ParseHardware(_computer.Hardware);
@@ -38,6 +42,7 @@ namespace ManagedLibreHardwareMonitor
             return jsonString;
         }
 
+        // parse the hardware data into a custom data structure
         private Hardware[] ParseHardware(IEnumerable<IHardware> hardwareList)
         {
             return hardwareList.Select(h => new Hardware
@@ -45,11 +50,12 @@ namespace ManagedLibreHardwareMonitor
                 HardwareType = h.HardwareType,
                 Name = h.Name,
                 SubHardware = ParseHardware(h.SubHardware),
-                Sensors = ParseSensors(h.Sensors)
+                Sensors = parseSensors(h.Sensors)
             }).ToArray();
         }
 
-        private Sensor[] ParseSensors(IEnumerable<ISensor> sensorList)
+        // parse the sensor data into a custom data structure
+        private Sensor[] parseSensors(IEnumerable<ISensor> sensorList)
         {
             return sensorList.Select(s => new Sensor
             {
@@ -63,6 +69,7 @@ namespace ManagedLibreHardwareMonitor
         }
     }
 
+    // visitor class to handle updating hardware information
     public class UpdateVisitor : IVisitor
     {
         public void VisitComputer(IComputer computer)
@@ -74,10 +81,11 @@ namespace ManagedLibreHardwareMonitor
             hardware.Update();
             foreach (IHardware subHardware in hardware.SubHardware) subHardware.Accept(this);
         }
-        public void VisitSensor(ISensor sensor) { }
-        public void VisitParameter(IParameter parameter) { }
+        public void VisitSensor(ISensor Sensor) { }
+        public void VisitParameter(IParameter Parameter) { }
     }
-       
+
+    // custom class to represent hardware
     public class Hardware
     {
         public HardwareType HardwareType { get; set; }
@@ -89,6 +97,7 @@ namespace ManagedLibreHardwareMonitor
         public Sensor[] Sensors { get; set; }
     }
 
+    // custom class to represent sensors
     public class Sensor
     {
         public SensorType SensorType { get; set; }
