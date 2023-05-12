@@ -141,6 +141,7 @@ impl Application for App {
             }
             Message::VisibilityChanged((name, visible)) => {
                 self.config.visibility.insert(name, visible);
+                self.config.save().expect("Failed to save config");
                 Command::none()
             }
         }
@@ -148,6 +149,7 @@ impl Application for App {
 
     // the base of the GUI
     fn view(&self) -> Element<'_, Self::Message> {
+        // build the side bar with the visible hardware
         let mut side_bar = Column::new();
 
         if self.config.is_visible(&self.stats.cpu.name) {
@@ -176,10 +178,9 @@ impl Application for App {
             }
         }
 
-        let mut visibility_options = Column::new().spacing(10);
-
-        for (name, visible) in self.config.visibility.iter() {
-            visibility_options = visibility_options.push(
+        // construct visibility options from config
+        let visibility_options = self.config.visibility.iter()
+            .map(|(name, visible)| {
                 Row::new().width(Length::Shrink)
                     .push(Text::new(name))
                     .push(Space::new(Length::Fixed(15.0), Length::Shrink))
@@ -191,9 +192,9 @@ impl Application for App {
                             .style(theme::Toggler::Custom(Box::new(VisibilityToggler)))
                             .width(Length::Shrink)
                     )
-                    .push(Space::new(Length::Fixed(20.0), Length::Shrink))
-            );
-        }
+                    .push(Space::new(Length::Fixed(20.0), Length::Shrink)).into()
+            })
+            .collect();
 
         Row::new()
             .width(Length::Fill)
@@ -249,54 +250,55 @@ impl Application for App {
                     Route::Network(index) => Container::new(self.stats.network_adapters[index].view_large())
                         .style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill),
                     Route::Settings => Container::new(
-                        Column::new()
-                        .padding(20)
-                            .spacing(10)
-                            .push(
-                                Row::new()
-                                    .height(Length::Fixed(30.0))
-                                    .push(Text::new("Settings").size(28))
+                        Scrollable::new( // entire settings page is scrollable
+                                         Column::new()
+                                             .padding(20)
+                                             .spacing(10)
+                                             .push(
+                                                 Row::new()
+                                                     .height(Length::Fixed(30.0))
+                                                     .push(Text::new("Settings").size(28))
+                                             )
+                                             .push(Space::new(Length::Shrink, Length::Fixed(10.0)))
+                                             .push(
+                                                 Row::new() // theme selector
+                                                     .spacing(10)
+                                                     .align_items(Alignment::Center)
+                                                     .push(Text::new("Theme").size(20))
+                                                     .push(
+                                                         PickList::new(&Theme::ALL[..], Some(self.config.theme), Message::ThemeChanged)
+                                                             .style(
+                                                                 theme::PickList::Custom(
+                                                                     Rc::new(PickListStyle),
+                                                                     Rc::new(PickListStyle),
+                                                                 )
+                                                             )
+                                                             .padding(5)
+                                                     )
+                                             )
+                                             .push(
+                                                 Row::new() // temperature unit selector
+                                                     .spacing(10)
+                                                     .align_items(Alignment::Center)
+                                                     .push(Text::new("Fahrenheit").size(20))
+                                                     .push(
+                                                         Toggler::new(None, self.config.celsius, |_| { Message::TemperatureUnitChanged })
+                                                             .width(Length::Shrink)
+                                                             .style(theme::Toggler::Custom(Box::new(TogglerStyle)))
+                                                     )
+                                                     .push(Text::new("Celsius").size(20))
+                                             )
+                                             .push(Space::new(Length::Shrink, Length::Fixed(10.0))) // extra space before visibility options
+                                             .push(Text::new("Visibility").size(28)) // visibility options title
+                                             .push(Column::with_children(visibility_options).spacing(10)) // build a column of visibility options
+                        )
+                            .style(theme::Scrollable::Custom(Box::new(ScrollableStyle))) // styling for the scrollable
+                            .vertical_scroll(
+                                Properties::new()
+                                    .scroller_width(6)
+                                    .margin(0.5)
                             )
-                            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
-                            .push(
-                                Row::new()
-                                    .spacing(10)
-                                    .align_items(Alignment::Center)
-                                    .push(Text::new("Theme").size(20))
-                                    .push(
-                                        PickList::new(&Theme::ALL[..], Some(self.config.theme), Message::ThemeChanged)
-                                            .style(
-                                                theme::PickList::Custom(
-                                                    Rc::new(PickListStyle),
-                                                    Rc::new(PickListStyle),
-                                                )
-                                            )
-                                            .padding(5)
-                                    )
-                            )
-                            .push(
-                                Row::new()
-                                    .spacing(10)
-                                    .align_items(Alignment::Center)
-                                    .push(Text::new("Fahrenheit").size(20))
-                                    .push(
-                                        Toggler::new(None, self.config.celsius, |_| { Message::TemperatureUnitChanged })
-                                            .width(Length::Shrink)
-                                            .style(theme::Toggler::Custom(Box::new(TogglerStyle)))
-                                    )
-                                    .push(Text::new("Celsius").size(20))
-                            )
-                            .push(Space::new(Length::Fill, Length::Fixed(10.0)))
-                            .push(Text::new("Visibility").size(28))
-                            .push(
-                                Scrollable::new(visibility_options)
-                                    .style(theme::Scrollable::Custom(Box::new(ScrollableStyle)))
-                                    .vertical_scroll(
-                                        Properties::new()
-                                            .scroller_width(6)
-                                            .margin(0.5)
-                                    )
-                            )
+                            .width(Length::Fill)
                     ).style(theme::Container::Custom(Box::new(MainBox))).height(Length::Fill).width(Length::Fill)
                 }
             )
