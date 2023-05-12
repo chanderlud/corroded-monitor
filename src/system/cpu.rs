@@ -121,16 +121,16 @@ pub(crate) struct Cpu {
     total_temperature: f32,
     total_frequency: f32,
     total_load: f32,
-    total_power: f32,
+    total_power: Option<f32>,
     maximum_temperature: f32,
-    maximum_power: f32,
+    maximum_power: Option<f32>,
     maximum_frequency: f32,
     average_temperature: f32,
     average_frequency: f32,
-    average_power: f32,
+    average_power: Option<f32>,
     average_load: f32,
     pub(crate) graph_state: GraphState,
-    power: Vec<Data>,
+    power: VecDeque<Data>,
     load_graph: LineGraph,
     regex: Regex,
     core_count: usize,
@@ -146,16 +146,16 @@ impl Cpu {
             total_temperature: 0.0,
             total_frequency: 0.0,
             total_load: 0.0,
-            total_power: 0.0,
+            total_power: None,
             maximum_temperature: 0.0,
-            maximum_power: 0.0,
+            maximum_power: None,
             maximum_frequency: 0.0,
             average_temperature: 0.0,
             average_frequency: 0.0,
-            average_power: 0.0,
+            average_power: None,
             average_load: 0.0,
             graph_state: GraphState::Utilization,
-            power: Vec::new(),
+            power: VecDeque::with_capacity(600),
             load_graph: LineGraph::new((0, 255, 255)),
             regex: Regex::new(r"CPU Core #(\d+)(?: Thread #(\d+))?").unwrap(), // regex for parsing cpu core/thread data
             core_count: 0,
@@ -180,7 +180,12 @@ impl Cpu {
             let data = Data::from(sensor);
 
             if sensor.name == "CPU Cores" {
-                self.power.push(data);
+                // limit data points to 10 minutes
+                if self.power.len() == 600 {
+                    self.power.pop_front();
+                }
+
+                self.power.push_back(data);
             } else if sensor.name.starts_with("CPU Core") && !sensor.name.ends_with("TjMax") {
                 match sensor.sensor_type {
                     SensorType::Load => {
@@ -244,9 +249,7 @@ impl Cpu {
         self.total_temperature = self.calculate_total_metric(|d| &d.temperature);
 
         if self.power.len() > 0 {
-            self.total_power = self.power.last().unwrap().current;
-        } else {
-            self.total_power = 0.0;
+            self.total_power = Some(self.power.back().unwrap().current);
         }
 
         self.total_frequency = self.calculate_total_metric(|d| &d.frequency);
@@ -260,9 +263,7 @@ impl Cpu {
         self.maximum_temperature = self.calculate_maximum_metric(|d| &d.temperature);
 
         if self.power.len() > 0 {
-            self.maximum_power = self.power.last().unwrap().maximum;
-        } else {
-            self.maximum_power = 0.0;
+            self.maximum_power = Some(self.power.back().unwrap().maximum);
         }
 
         self.maximum_frequency = self.calculate_maximum_metric(|d| &d.frequency);
@@ -272,7 +273,7 @@ impl Cpu {
     fn calculate_averages(&mut self) {
         self.average_temperature = self.calculate_average_metric(|d| &d.temperature);
         self.average_frequency = self.calculate_average_metric(|d| &d.frequency);
-        self.average_power = self.power.iter().map(|d| d.current).sum::<f32>() / self.power.len() as f32;
+        self.average_power = Some(self.power.iter().map(|d| d.current).sum::<f32>() / self.power.len() as f32);
         self.average_load = self.calculate_average_metric(|d| &d.load);
     }
 
@@ -338,6 +339,121 @@ impl Cpu {
             })
             .sum::<f32>()
             / self.logical_processor_count as f32
+    }
+
+    // build text stats
+    fn make_stats(&self, celsius: bool) -> Element<Message> {
+        let mut stats = Row::new() // text stats
+            .spacing(20)
+            .push(
+                Column::new()
+                    .spacing(5)
+                    .push(
+                        Column::new()
+                            .push(Text::new("Cores").size(16))
+                            .push(Text::new(self.core_count.to_string()).size(24))
+                    )
+                    .push(
+                        Column::new()
+                            .push(Text::new("Logical Processors").size(16))
+                            .push(Text::new(self.logical_processor_count.to_string()).size(24))
+                    )
+            )
+            .push(
+                Column::new()
+                    .spacing(5)
+                    .push(
+                        Column::new()
+                            .push(Text::new("Utilization").size(16))
+                            .push(Text::new(format!("{:.0}%", self.total_load)).size(24))
+                    )
+                    .push(
+                        Column::new()
+                            .push(Text::new("Average Utilization").size(16))
+                            .push(Text::new(format!("{:.0}%", self.average_load)).size(24))
+                    )
+            )
+            .push(
+                Column::new()
+                    .spacing(5)
+                    .push(
+                        Column::new()
+                            .push(Text::new("Frequency").size(16))
+                            .push(Text::new(format!("{:.2} Ghz", self.total_frequency / 1000.0)).size(24))
+                    )
+                    .push(
+                        Column::new()
+                            .push(Text::new("Max Frequency").size(16))
+                            .push(Text::new(format!("{:.2} Ghz", self.maximum_frequency / 1000.0)).size(24))
+                    )
+                    .push(
+                        Column::new()
+                            .push(Text::new("Average Frequency").size(16))
+                            .push(Text::new(format!("{:.2} Ghz", self.average_frequency / 1000.0)).size(24))
+                    )
+            )
+            .push(
+                Column::new()
+                    .spacing(5)
+                    .push(
+                        Column::new()
+                            .push(Text::new("Temperature").size(16))
+                            .push(Text::new(
+                                if celsius {
+                                    format!("{:.0}°C", self.total_temperature)
+                                } else {
+                                    format!("{:.0}°F", self.total_temperature * 1.8 + 32.0)
+                                }
+                            ).size(24))
+                    )
+                    .push(
+                        Column::new()
+                            .push(Text::new("Max Temperature").size(16))
+                            .push(Text::new(
+                                if celsius {
+                                    format!("{:.0}°C", self.maximum_temperature)
+                                } else {
+                                    format!("{:.0}°F", self.maximum_temperature * 1.8 + 32.0)
+                                }
+                            ).size(24))
+                    )
+                    .push(
+                        Column::new()
+                            .push(Text::new("Average Temperature").size(16))
+                            .push(Text::new(
+                                if celsius {
+                                    format!("{:.0}°C", self.average_temperature)
+                                } else {
+                                    format!("{:.0}°F", self.average_temperature * 1.8 + 32.0)
+                                }
+                            ).size(24))
+                    )
+            );
+
+        // power is an optional stat, only show if it exists
+        if self.power.len() > 0 {
+            stats = stats.push(
+                Column::new()
+                    .spacing(5)
+                    .push(
+                        Column::new()
+                            .push(Text::new("Power Consumption").size(16))
+                            .push(Text::new(format!("{:.0} Watts", self.total_power.unwrap())).size(24))
+                    )
+                    .push(
+                        Column::new()
+                            .push(Text::new("Max Power Consumption").size(16))
+                            .push(Text::new(format!("{:.0} Watts", self.maximum_power.unwrap())).size(24))
+                    )
+                    .push(
+                        Column::new()
+                            .push(Text::new("Average Power Consumption").size(16))
+                            .push(Text::new(format!("{:.0} Watts", self.average_power.unwrap())).size(24))
+                    )
+            )
+        }
+
+        stats.into()
     }
 
     pub(crate) fn view_small(&self, celsius: bool) -> Element<Message> {
@@ -435,113 +551,7 @@ impl Cpu {
                     .push(row) // the graphs
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
-            .push(
-                Row::new() // text stats
-                    .spacing(20)
-                    .push(
-                        Column::new()
-                            .spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Cores").size(16))
-                                    .push(Text::new(self.core_count.to_string()).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Logical Processors").size(16))
-                                    .push(Text::new(self.logical_processor_count.to_string()).size(24))
-                            )
-                    )
-                    .push(
-                        Column::new()
-                            .spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Utilization").size(16))
-                                    .push(Text::new(format!("{:.0}%", self.total_load)).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Average Utilization").size(16))
-                                    .push(Text::new(format!("{:.0}%", self.average_load)).size(24))
-                            )
-                    )
-                    .push(
-                        Column::new()
-                            .spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Frequency").size(16))
-                                    .push(Text::new(format!("{:.2} Ghz", self.total_frequency / 1000.0)).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Max Frequency").size(16))
-                                    .push(Text::new(format!("{:.2} Ghz", self.maximum_frequency / 1000.0)).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Average Frequency").size(16))
-                                    .push(Text::new(format!("{:.2} Ghz", self.average_frequency / 1000.0)).size(24))
-                            )
-                    )
-                    .push(
-                        Column::new()
-                            .spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Temperature").size(16))
-                                    .push(Text::new(
-                                        if celsius {
-                                            format!("{:.0}°C", self.total_temperature)
-                                        } else {
-                                            format!("{:.0}°F", self.total_temperature * 1.8 + 32.0)
-                                        }
-                                    ).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Max Temperature").size(16))
-                                    .push(Text::new(
-                                        if celsius {
-                                            format!("{:.0}°C", self.maximum_temperature)
-                                        } else {
-                                            format!("{:.0}°F", self.maximum_temperature * 1.8 + 32.0)
-                                        }
-                                    ).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Average Temperature").size(16))
-                                    .push(Text::new(
-                                        if celsius {
-                                        format!("{:.0}°C", self.average_temperature)
-                                    } else {
-                                        format!("{:.0}°F", self.average_temperature * 1.8 + 32.0)
-                                    }
-                                    ).size(24))
-                            )
-                    )
-                    .push(
-                        Column::new()
-                            .spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Power Consumption").size(16))
-                                    .push(Text::new(format!("{:.0} Watts", self.total_power)).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Max Power Consumption").size(16))
-                                    .push(Text::new(format!("{:.0} Watts", self.maximum_power)).size(24))
-                            )
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Average Power Consumption").size(16))
-                                    .push(Text::new(format!("{:.0} Watts", self.average_power)).size(24))
-                            )
-                    )
-            )
+            .push(self.make_stats(celsius)) // build the last row with text stats
             .into()
     }
 }
