@@ -28,4 +28,3 @@ fn main() {
         .set_icon("icon.ico")
         .compile().expect("failed to add icon to executable");
 }
-
