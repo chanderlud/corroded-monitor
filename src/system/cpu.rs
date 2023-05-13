@@ -20,13 +20,15 @@ pub(crate) enum GraphState {
     Temperature,
     Utilization,
     Frequency,
+    Power,
 }
 
 impl GraphState {
-    pub const ALL: [GraphState; 3] = [
-        GraphState::Temperature,
-        GraphState::Utilization,
-        GraphState::Frequency
+    pub const ALL: [Self; 4] = [
+        Self::Temperature,
+        Self::Utilization,
+        Self::Frequency,
+        Self::Power,
     ];
 }
 
@@ -34,9 +36,10 @@ impl Display for GraphState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}",
                match self {
-                   GraphState::Temperature => "Temperature",
-                   GraphState::Utilization => "Utilization",
-                   GraphState::Frequency => "Frequency"
+                   Self::Temperature => "Temperature",
+                   Self::Utilization => "Utilization",
+                   Self::Frequency => "Frequency",
+                   Self::Power => "Power",
                }
         )
     }
@@ -131,6 +134,7 @@ pub(crate) struct Cpu {
     average_load: f32,
     pub(crate) graph_state: GraphState,
     power: VecDeque<Data>,
+    power_graph: LineGraph,
     load_graph: LineGraph,
     regex: Regex,
     core_count: usize,
@@ -156,6 +160,7 @@ impl Cpu {
             average_load: 0.0,
             graph_state: GraphState::Utilization,
             power: VecDeque::with_capacity(600),
+            power_graph: LineGraph::new((119, 221, 119)),
             load_graph: LineGraph::new((0, 255, 255)),
             regex: Regex::new(r"CPU Core #(\d+)(?: Thread #(\d+))?").unwrap(), // regex for parsing cpu core/thread data
             core_count: 0,
@@ -185,6 +190,7 @@ impl Cpu {
                     self.power.pop_front();
                 }
 
+                self.power_graph.push_data(data.current);
                 self.power.push_back(data);
             } else if sensor.name.starts_with("CPU Core") && !sensor.name.ends_with("TjMax") {
                 match sensor.sensor_type {
@@ -491,27 +497,37 @@ impl Cpu {
     }
 
     pub(crate) fn view_large(&self, celsius: bool) -> Element<Message> {
-        let thread_count = self.cores.iter().map(|c| c.thread_count).sum::<usize>();
-        let row_count = calculate_rows(thread_count);
+        let graph = if self.graph_state == GraphState::Power {
+            // single graph for power
+            Container::new(self.power_graph.view())
+                .style(theme::Container::Custom(Box::new(GraphBox::new((119, 221, 119)))))
+                .width(Length::Fill)
+                .height(Length::Fill)
+        } else {
+            let thread_count = self.cores.iter().map(|c| c.thread_count).sum::<usize>();
+            let row_count = calculate_rows(thread_count);
 
-        // create the graphs
-        let graphs = create_graph_elements(&self.cores, self.graph_state);
+            // create the graphs
+            let graphs = create_graph_elements(&self.cores, self.graph_state);
 
-        let mut row = Row::new().width(Length::Fill).height(Length::Fill).spacing(10);
-        let mut column: Column<Message> = Column::new().spacing(10).width(Length::FillPortion(1)).height(Length::FillPortion(1));
-        let mut items_in_column = 0;
+            let mut graph_grid = Row::new().width(Length::Fill).height(Length::Fill).spacing(10);
+            let mut column: Column<Message> = Column::new().spacing(10).width(Length::FillPortion(1)).height(Length::FillPortion(1));
+            let mut items_in_column = 0;
 
-        // places the graphs into their columns and the columns into the row
-        for graph in graphs {
-            column = column.push(graph);
-            items_in_column += 1;
+            // places the graphs into their columns and the columns into the row
+            for graph in graphs {
+                column = column.push(graph);
+                items_in_column += 1;
 
-            if items_in_column == row_count {
-                row = row.push(column);
-                column = Column::new().spacing(10).width(Length::FillPortion(1)).height(Length::FillPortion(1));
-                items_in_column = 0;
+                if items_in_column == row_count {
+                    graph_grid = graph_grid.push(column);
+                    column = Column::new().spacing(10).width(Length::FillPortion(1)).height(Length::FillPortion(1));
+                    items_in_column = 0;
+                }
             }
-        }
+
+            Container::new(graph_grid)
+        };
 
         Column::new().padding(20)
             .push(
@@ -540,15 +556,14 @@ impl Cpu {
                     .spacing(5)
                     .width(Length::Fill)
                     .push( // graph labels
-                           Text::new(
-                               match self.graph_state {
-                                   GraphState::Utilization => "Utilization (0-100%)",
-                                   GraphState::Frequency => "Core Frequency",
-                                   GraphState::Temperature => "Temperature"
-                               }
-                           ).size(14)
+                           match self.graph_state {
+                               GraphState::Utilization => Text::new("Utilization (0-100%)"),
+                               GraphState::Frequency => Text::new("Core Frequency"),
+                               GraphState::Temperature => Text::new("Temperature"),
+                               GraphState::Power => Text::new(format!("Power Consumption (0-{} Watts)", self.power_graph.maximum_value)),
+                           }.size(14)
                     )
-                    .push(row) // the graphs
+                    .push(graph) // the graphs
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(self.make_stats(celsius)) // build the last row with text stats
@@ -590,14 +605,14 @@ fn create_graph_elements(cores: &[CpuCore], graph_state: GraphState) -> Vec<Elem
                 GraphState::Utilization => (&thread.load_graph, (0, 255, 255)),
                 GraphState::Temperature => (&thread.temperature_graph, (183, 53, 90)),
                 GraphState::Frequency => (&thread.frequency_graph, (255, 190, 125)),
+                _ => unreachable!()
             };
 
-            Element::new(
-                Container::new(graph.view())
-                    .style(theme::Container::Custom(Box::new(GraphBox::new(color))))
-                    .width(Length::FillPortion(1))
-                    .height(Length::FillPortion(1)),
-            )
+            Container::new(graph.view())
+                .style(theme::Container::Custom(Box::new(GraphBox::new(color))))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
         })
         .collect()
 }
