@@ -17,6 +17,7 @@ mod system;
 mod ui;
 
 // TODO optional stats, dont render them if they arent available
+// TODO loading state
 fn main() {
     if let Err(error) = ui::main() {
         println!("An error occurred: {:?}", error);
