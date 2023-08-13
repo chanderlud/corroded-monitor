@@ -20,7 +20,7 @@ regex = "1.8.1"
 
 [build-dependencies]
 embed-resource = "2.1.1"
-bindgen = "0.65.1"
+bindgen = "0.66.1"
 winres = "0.1.12"
 
 [profile.release]
