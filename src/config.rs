@@ -46,7 +46,7 @@ impl Display for Error {
 pub(crate) struct Config {
     pub(crate) theme: Theme,
     pub(crate) celsius: bool,
-    pub(crate) visibility: HashMap<String, bool>
+    pub(crate) visibility: HashMap<String, bool>,
 }
 
 // default options
@@ -55,7 +55,7 @@ impl Default for Config {
         Self {
             theme: Theme::System,
             celsius: true,
-            visibility: Default::default()
+            visibility: Default::default(),
         }
     }
 }
@@ -85,7 +85,7 @@ impl Config {
     // save config to file
     pub(crate) fn save(&self) -> Result<()> {
         let path = Path::new("config.json");
-        let file = File::create(path).unwrap();
+        let file = File::create(path)?;
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
     }

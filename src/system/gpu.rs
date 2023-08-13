@@ -1,15 +1,14 @@
 use std::rc::Rc;
 
-use iced::{Alignment, Length};
-use iced::Element;
 use iced::widget::{Button, Column, Container, PickList, Row, Space, Text};
-use iced_style::theme;
+use iced::{theme, Element};
+use iced::{Alignment, Length};
 
 use crate::system::{Data, Hardware, SensorType};
-use crate::ui::{chart::LineGraph, Message, Route};
 use crate::ui::style::button::ComponentSelect;
 use crate::ui::style::container::GraphBox;
 use crate::ui::style::pick_list::PickList as PickListStyle;
+use crate::ui::{chart::LineGraph, Message, Route};
 
 // possible graph types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,23 +61,25 @@ impl GraphState {
 // the text for the pick list
 impl std::fmt::Display for GraphState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",
-               match self {
-                   GraphState::CoreClock => "Core Frequency",
-                   GraphState::MemoryClock => "Memory Frequency",
-                   // GraphState::ShaderClock => "Shader Frequency",
-                   GraphState::CoreLoad => "Core Load",
-                   GraphState::MemoryLoad => "Memory Load",
-                   GraphState::BusInterfaceLoad => "Bus Interface Load",
-                   GraphState::VideoEngineLoad => "Video Engine Load",
-                   GraphState::FrameBufferLoad => "Frame Buffer Load",
-                   GraphState::FanSpeed => "Fan Speed",
-                   GraphState::Temperature => "Temperature",
-                   GraphState::PowerUsage => "Power Usage",
-                   GraphState::HotSpotTemperature => "Hot Spot",
-                   GraphState::PCIeRx => "PCIe Down",
-                   GraphState::PCIeTx => "PCIe Up",
-               }
+        write!(
+            f,
+            "{}",
+            match self {
+                GraphState::CoreClock => "Core Frequency",
+                GraphState::MemoryClock => "Memory Frequency",
+                // GraphState::ShaderClock => "Shader Frequency",
+                GraphState::CoreLoad => "Core Load",
+                GraphState::MemoryLoad => "Memory Load",
+                GraphState::BusInterfaceLoad => "Bus Interface Load",
+                GraphState::VideoEngineLoad => "Video Engine Load",
+                GraphState::FrameBufferLoad => "Frame Buffer Load",
+                GraphState::FanSpeed => "Fan Speed",
+                GraphState::Temperature => "Temperature",
+                GraphState::PowerUsage => "Power Usage",
+                GraphState::HotSpotTemperature => "Hot Spot",
+                GraphState::PCIeRx => "PCIe Down",
+                GraphState::PCIeTx => "PCIe Up",
+            }
         )
     }
 }
@@ -188,7 +189,8 @@ pub(crate) struct Gpu {
 }
 
 impl Gpu {
-    pub(crate) fn new() -> Self { // create a new GPU widget with default state
+    pub(crate) fn new() -> Self {
+        // create a new GPU widget with default state
         Self {
             name: String::new(),
             index: 0,
@@ -234,7 +236,7 @@ impl Gpu {
                         self.clock.core = data
                     }
                     _ => {}
-                }
+                },
                 "GPU Memory" => match sensor.sensor_type {
                     SensorType::Load => {
                         self.load.memory_graph.push_data(data.current);
@@ -245,14 +247,11 @@ impl Gpu {
                         self.clock.memory = data
                     }
                     _ => {}
-                }
-                "GPU" => match sensor.sensor_type {
-                    SensorType::Fan => {
-                        self.fan_graph.push_data(data.current);
-                        self.fan_speed = data
-                    }
-                    _ => {}
-                }
+                },
+                "GPU" => if sensor.sensor_type == SensorType::Fan {
+                    self.fan_graph.push_data(data.current);
+                    self.fan_speed = data
+                },
                 "GPU Frame Buffer" => {
                     self.load.frame_buffer_graph.push_data(data.current);
                     self.load.frame_buffer = data
@@ -280,9 +279,11 @@ impl Gpu {
                     self.hotspot_temperature_graph.push_data(data.current);
                     self.hotspot_temperature = data
                 }
-                "GPU Fan 1" => if sensor.sensor_type == SensorType::Fan {
-                    self.fan_graph.push_data(data.current);
-                    self.fan_speed = data
+                "GPU Fan 1" => {
+                    if sensor.sensor_type == SensorType::Fan {
+                        self.fan_graph.push_data(data.current);
+                        self.fan_speed = data
+                    }
                 }
                 "GPU PCIe Rx" => {
                     self.load.pcie_rx_graph.push_data(data.current);
@@ -335,11 +336,14 @@ impl Gpu {
     pub fn view_large(&self, celsius: bool) -> Element<Message> {
         Column::new()
             .padding(20)
-            .push( // the top bar with the name of the gpu
-                   Row::new().align_items(Alignment::Center).height(Length::Fixed(30.0))
-                       .push(Text::new("GPU").size(28))
-                       .push(Space::new(Length::Fill, Length::Shrink))
-                       .push(Text::new(&self.name))
+            .push(
+                // the top bar with the name of the gpu
+                Row::new()
+                    .align_items(Alignment::Center)
+                    .height(Length::Fixed(30.0))
+                    .push(Text::new("GPU").size(28))
+                    .push(Space::new(Length::Fill, Length::Shrink))
+                    .push(Text::new(&self.name)),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
@@ -348,81 +352,152 @@ impl Gpu {
                         Column::new()
                             .spacing(5)
                             .width(Length::Fill)
-                            .push(Row::new()
-                                .push(match self.graph_state_1 { // the label for the graph
-                                    GraphState::CoreLoad => Text::new(format!("Core Utilization (0-{}%)", self.load.core_graph.maximum_value)).size(14),
-                                    GraphState::MemoryLoad => Text::new(format!("Memory Utilization (0-{}%)", self.load.memory_graph.maximum_value)).size(14),
-                                    GraphState::VideoEngineLoad => Text::new(format!("Video Engine Utilization (0-{}%)", self.load.video_engine_graph.maximum_value)).size(14),
-                                    GraphState::BusInterfaceLoad => Text::new(format!("Bus Interface Utilization (0-{}%)", self.load.bus_interface_graph.maximum_value)).size(14),
-                                    GraphState::FrameBufferLoad => Text::new(format!("Frame Buffer Utilization (0-{}%)", self.load.frame_buffer_graph.maximum_value)).size(14),
-                                    _ => Text::new("")
-                                })
-                                .push(Space::new(Length::Fill, Length::Shrink))
-                                .push(PickList::new(&GraphState::REGION_ONE[..], Some(self.graph_state_1), Message::GpuPickChanged) // the picklist for the different graph types
-                                    .text_size(14)
-                                    .width(Length::Fixed(120.0))
-                                    .padding(0)
-                                    .style(theme::PickList::Custom(Rc::new(PickListStyle), Rc::new(PickListStyle)))
-                                )
-                                .width(Length::Fill)
+                            .push(
+                                Row::new()
+                                    .push(match self.graph_state_1 {
+                                        // the label for the graph
+                                        GraphState::CoreLoad => Text::new(format!(
+                                            "Core Utilization (0-{}%)",
+                                            self.load.core_graph.maximum_value
+                                        ))
+                                        .size(14),
+                                        GraphState::MemoryLoad => Text::new(format!(
+                                            "Memory Utilization (0-{}%)",
+                                            self.load.memory_graph.maximum_value
+                                        ))
+                                        .size(14),
+                                        GraphState::VideoEngineLoad => Text::new(format!(
+                                            "Video Engine Utilization (0-{}%)",
+                                            self.load.video_engine_graph.maximum_value
+                                        ))
+                                        .size(14),
+                                        GraphState::BusInterfaceLoad => Text::new(format!(
+                                            "Bus Interface Utilization (0-{}%)",
+                                            self.load.bus_interface_graph.maximum_value
+                                        ))
+                                        .size(14),
+                                        GraphState::FrameBufferLoad => Text::new(format!(
+                                            "Frame Buffer Utilization (0-{}%)",
+                                            self.load.frame_buffer_graph.maximum_value
+                                        ))
+                                        .size(14),
+                                        _ => Text::new(""),
+                                    })
+                                    .push(Space::new(Length::Fill, Length::Shrink))
+                                    .push(
+                                        PickList::new(
+                                            &GraphState::REGION_ONE[..],
+                                            Some(self.graph_state_1),
+                                            Message::GpuPickChanged,
+                                        ) // the picklist for the different graph types
+                                        .text_size(14)
+                                        .width(Length::Fixed(120.0))
+                                        .padding(0)
+                                        .style(
+                                            theme::PickList::Custom(
+                                                Rc::new(PickListStyle),
+                                                Rc::new(PickListStyle),
+                                            ),
+                                        ),
+                                    )
+                                    .width(Length::Fill),
                             )
                             .push(
-                                Container::new( // the actual graph
-                                                match self.graph_state_1 {
-                                                    GraphState::CoreLoad => self.load.core_graph.view(),
-                                                    GraphState::MemoryLoad => self.load.memory_graph.view(),
-                                                    GraphState::FrameBufferLoad => self.load.frame_buffer_graph.view(),
-                                                    GraphState::BusInterfaceLoad => self.load.bus_interface_graph.view(),
-                                                    GraphState::VideoEngineLoad => self.load.video_engine_graph.view(),
-                                                    _ => unreachable!()
-                                                }
+                                Container::new(
+                                    // the actual graph
+                                    match self.graph_state_1 {
+                                        GraphState::CoreLoad => self.load.core_graph.view(),
+                                        GraphState::MemoryLoad => self.load.memory_graph.view(),
+                                        GraphState::FrameBufferLoad => {
+                                            self.load.frame_buffer_graph.view()
+                                        }
+                                        GraphState::BusInterfaceLoad => {
+                                            self.load.bus_interface_graph.view()
+                                        }
+                                        GraphState::VideoEngineLoad => {
+                                            self.load.video_engine_graph.view()
+                                        }
+                                        _ => unreachable!(),
+                                    },
                                 )
-                                    .width(Length::Fill)
-                                    .height(Length::Fill)
-                                    .style(theme::Container::Custom(Box::new(GraphBox::new((255, 190, 125)))))
-                            )
+                                .width(Length::Fill)
+                                .height(Length::Fill)
+                                .style(theme::Container::Custom(Box::new(GraphBox::new((
+                                    255, 190, 125,
+                                ))))),
+                            ),
                     )
                     .push(Space::new(Length::Fixed(20.0), Length::Shrink))
                     .push(
                         Column::new()
                             .spacing(5)
                             .width(Length::Fill)
-                            .push(Row::new()
-                                .push(
-                                    match self.graph_state_2 { // the label for the graph
-                                        GraphState::CoreClock => Text::new(format!("Core Frequency (0-{}Mhz)", self.clock.core_graph.maximum_value)).size(14),
-                                        GraphState::MemoryClock => Text::new(format!("Memory Frequency (0-{}Mhz)", self.clock.memory_graph.maximum_value)).size(14),
+                            .push(
+                                Row::new()
+                                    .push(match self.graph_state_2 {
+                                        // the label for the graph
+                                        GraphState::CoreClock => Text::new(format!(
+                                            "Core Frequency (0-{}Mhz)",
+                                            self.clock.core_graph.maximum_value
+                                        ))
+                                        .size(14),
+                                        GraphState::MemoryClock => Text::new(format!(
+                                            "Memory Frequency (0-{}Mhz)",
+                                            self.clock.memory_graph.maximum_value
+                                        ))
+                                        .size(14),
                                         // GraphState::ShaderClock => Text::new(format!("Shader Frequency (0-{}Mhz)", self.clock.memory_graph.maximum_value)).size(14),
-                                        GraphState::PCIeRx => Text::new(format!("PCIe Down (0-{} MB/s)", self.load.pcie_rx_graph.maximum_value / 1_000_000)).size(14),
-                                        GraphState::PCIeTx => Text::new(format!("PCIe Up (0-{} MB/s)", self.load.pcie_tx_graph.maximum_value / 1_000_000)).size(14),
-                                        _ => unreachable!()
-                                    }
-                                )
-                                .push(Space::new(Length::Fill, Length::Shrink))
-                                .push(PickList::new(&GraphState::REGION_TWO[..], Some(self.graph_state_2), Message::GpuPickChanged) // the picklist for the different graph types
-                                    .text_size(14)
-                                    .width(Length::Fixed(120.0))
-                                    .padding(0)
-                                    .style(theme::PickList::Custom(Rc::new(PickListStyle), Rc::new(PickListStyle)))
-                                )
-                                .width(Length::Fill)
+                                        GraphState::PCIeRx => Text::new(format!(
+                                            "PCIe Down (0-{} MB/s)",
+                                            self.load.pcie_rx_graph.maximum_value / 1_000_000
+                                        ))
+                                        .size(14),
+                                        GraphState::PCIeTx => Text::new(format!(
+                                            "PCIe Up (0-{} MB/s)",
+                                            self.load.pcie_tx_graph.maximum_value / 1_000_000
+                                        ))
+                                        .size(14),
+                                        _ => unreachable!(),
+                                    })
+                                    .push(Space::new(Length::Fill, Length::Shrink))
+                                    .push(
+                                        PickList::new(
+                                            &GraphState::REGION_TWO[..],
+                                            Some(self.graph_state_2),
+                                            Message::GpuPickChanged,
+                                        ) // the picklist for the different graph types
+                                        .text_size(14)
+                                        .width(Length::Fixed(120.0))
+                                        .padding(0)
+                                        .style(
+                                            theme::PickList::Custom(
+                                                Rc::new(PickListStyle),
+                                                Rc::new(PickListStyle),
+                                            ),
+                                        ),
+                                    )
+                                    .width(Length::Fill),
                             )
                             .push(
-                                Container::new( // the actual graph
-                                                match self.graph_state_2 {
-                                                    GraphState::CoreClock => self.clock.core_graph.view(),
-                                                    GraphState::MemoryClock => self.clock.memory_graph.view(),
-                                                    // GraphState::ShaderClock => self.clock.shader_graph.view(),
-                                                    GraphState::PCIeRx => self.load.pcie_rx_graph.view(),
-                                                    GraphState::PCIeTx => self.load.pcie_tx_graph.view(),
-                                                    _ => unreachable!()
-                                                })
-                                    .width(Length::Fill)
-                                    .height(Length::Fill)
-                                    .style(theme::Container::Custom(Box::new(GraphBox::new((255, 190, 125)))))
-                            )
+                                Container::new(
+                                    // the actual graph
+                                    match self.graph_state_2 {
+                                        GraphState::CoreClock => self.clock.core_graph.view(),
+                                        GraphState::MemoryClock => self.clock.memory_graph.view(),
+                                        // GraphState::ShaderClock => self.clock.shader_graph.view(),
+                                        GraphState::PCIeRx => self.load.pcie_rx_graph.view(),
+                                        GraphState::PCIeTx => self.load.pcie_tx_graph.view(),
+                                        _ => unreachable!(),
+                                    },
+                                )
+                                .width(Length::Fill)
+                                .height(Length::Fill)
+                                .style(theme::Container::Custom(Box::new(GraphBox::new((
+                                    255, 190, 125,
+                                ))))),
+                            ),
                     )
-                    .height(Length::FillPortion(2))
+                    .height(Length::FillPortion(2)),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
@@ -430,49 +505,78 @@ impl Gpu {
                     .spacing(5)
                     .width(Length::Fill)
                     .height(Length::FillPortion(1))
-                    .push(Row::new()
-                        .push(
-                            match self.graph_state_3 { // the label for the graph
-                                GraphState::FanSpeed => Text::new(format!("Fan Speed (0-{} RPM)", self.fan_graph.maximum_value)).size(14),
-                                GraphState::Temperature => Text::new(
-                                    if celsius {
-                                        format!("Temperature (0-{}°C)", self.temperature_graph.maximum_value)
-                                    } else {
-                                        format!("Temperature (0-{}°F)", self.temperature_graph.maximum_value)
-                                    }
-                                ).size(14),
-                                GraphState::HotSpotTemperature => Text::new(
-                                    if celsius {
-                                        format!("Hot Spot Temperature (0-{}°C)", self.hotspot_temperature_graph.maximum_value)
-                                    } else {
-                                        format!("Hot Spot Temperature (0-{}°F)", self.hotspot_temperature_graph.maximum_value)
-                                    }
-                                ).size(14),
-                                GraphState::PowerUsage => Text::new(format!("Power Usage (0-{} Watts)", self.power_graph.maximum_value)).size(14),
-                                _ => unreachable!()
+                    .push(
+                        Row::new()
+                            .push(match self.graph_state_3 {
+                                // the label for the graph
+                                GraphState::FanSpeed => Text::new(format!(
+                                    "Fan Speed (0-{} RPM)",
+                                    self.fan_graph.maximum_value
+                                ))
+                                .size(14),
+                                GraphState::Temperature => Text::new(if celsius {
+                                    format!(
+                                        "Temperature (0-{}°C)",
+                                        self.temperature_graph.maximum_value
+                                    )
+                                } else {
+                                    format!(
+                                        "Temperature (0-{}°F)",
+                                        self.temperature_graph.maximum_value
+                                    )
+                                })
+                                .size(14),
+                                GraphState::HotSpotTemperature => Text::new(if celsius {
+                                    format!(
+                                        "Hot Spot Temperature (0-{}°C)",
+                                        self.hotspot_temperature_graph.maximum_value
+                                    )
+                                } else {
+                                    format!(
+                                        "Hot Spot Temperature (0-{}°F)",
+                                        self.hotspot_temperature_graph.maximum_value
+                                    )
+                                })
+                                .size(14),
+                                GraphState::PowerUsage => Text::new(format!(
+                                    "Power Usage (0-{} Watts)",
+                                    self.power_graph.maximum_value
+                                ))
+                                .size(14),
+                                _ => unreachable!(),
                             })
-                        .push(Space::new(Length::Fill, Length::Shrink))
-                        .push(PickList::new(&GraphState::REGION_THREE[..], Some(self.graph_state_3), Message::GpuPickChanged) // the picklist for the different graph types
-                            .text_size(14)
-                            .width(Length::Fixed(90.0))
-                            .padding(0)
-                            .style(theme::PickList::Custom(Rc::new(PickListStyle), Rc::new(PickListStyle)))
-                        )
-                        .width(Length::Fill)
+                            .push(Space::new(Length::Fill, Length::Shrink))
+                            .push(
+                                PickList::new(
+                                    &GraphState::REGION_THREE[..],
+                                    Some(self.graph_state_3),
+                                    Message::GpuPickChanged,
+                                ) // the picklist for the different graph types
+                                .text_size(14)
+                                .width(Length::Fixed(90.0))
+                                .padding(0)
+                                .style(theme::PickList::Custom(
+                                    Rc::new(PickListStyle),
+                                    Rc::new(PickListStyle),
+                                )),
+                            )
+                            .width(Length::Fill),
                     )
                     .push(
-                        Container::new(
-                            match self.graph_state_3 { // the actual graph
-                                GraphState::FanSpeed => self.fan_graph.view(),
-                                GraphState::Temperature => self.temperature_graph.view(),
-                                GraphState::HotSpotTemperature => self.hotspot_temperature_graph.view(),
-                                GraphState::PowerUsage => self.power_graph.view(),
-                                _ => unreachable!()
-                            })
-                            .width(Length::Fill)
-                            .height(Length::Fill)
-                            .style(theme::Container::Custom(Box::new(GraphBox::new((255, 190, 125)))))
-                    )
+                        Container::new(match self.graph_state_3 {
+                            // the actual graph
+                            GraphState::FanSpeed => self.fan_graph.view(),
+                            GraphState::Temperature => self.temperature_graph.view(),
+                            GraphState::HotSpotTemperature => self.hotspot_temperature_graph.view(),
+                            GraphState::PowerUsage => self.power_graph.view(),
+                            _ => unreachable!(),
+                        })
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .style(theme::Container::Custom(Box::new(GraphBox::new((
+                            255, 190, 125,
+                        ))))),
+                    ),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
@@ -484,53 +588,72 @@ impl Gpu {
                             .push(
                                 Column::new()
                                     .push(Text::new("Core Utilization").size(16))
-                                    .push(Text::new(format!("{:.0}%", self.load.core.current)).size(24))
+                                    .push(
+                                        Text::new(format!("{:.0}%", self.load.core.current))
+                                            .size(24),
+                                    ),
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Memory Utilization").size(16))
-                                    .push(Text::new(format!("{:.0}%", self.load.memory.current)).size(24))
-                            )
+                                    .push(
+                                        Text::new(format!("{:.0}%", self.load.memory.current))
+                                            .size(24),
+                                    ),
+                            ),
                     )
                     .push(
                         Column::new()
                             .spacing(5)
                             .push(
-                                Column::new()
-                                    .push(Text::new("Frequency").size(16))
-                                    .push(Text::new(format!("{:.2} Ghz", self.clock.core.current / 1000.0)).size(24))
+                                Column::new().push(Text::new("Frequency").size(16)).push(
+                                    Text::new(format!(
+                                        "{:.2} Ghz",
+                                        self.clock.core.current / 1000.0
+                                    ))
+                                    .size(24),
+                                ),
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Frequency").size(16))
-                                    .push(Text::new(format!("{:.2} Ghz", self.clock.core.maximum / 1000.0)).size(24))
-                            )
+                                    .push(
+                                        Text::new(format!(
+                                            "{:.2} Ghz",
+                                            self.clock.core.maximum / 1000.0
+                                        ))
+                                        .size(24),
+                                    ),
+                            ),
                     )
                     .push(
                         Column::new()
                             .spacing(5)
                             .push(
-                                Column::new()
-                                    .push(Text::new("Temperature").size(16))
-                                    .push(Text::new(
-                                        if celsius {
-                                            format!("{:.0}°C", self.temperature.current)
-                                        } else {
-                                            format!("{:.0}°F", self.temperature.current * 1.8 + 32.0)
-                                        }
-                                    ).size(24))
+                                Column::new().push(Text::new("Temperature").size(16)).push(
+                                    Text::new(if celsius {
+                                        format!("{:.0}°C", self.temperature.current)
+                                    } else {
+                                        format!("{:.0}°F", self.temperature.current * 1.8 + 32.0)
+                                    })
+                                    .size(24),
+                                ),
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Temperature").size(16))
-                                    .push(Text::new(
-                                        if celsius {
+                                    .push(
+                                        Text::new(if celsius {
                                             format!("{:.0}°C", self.temperature.maximum)
                                         } else {
-                                            format!("{:.0}°F", self.temperature.maximum * 1.8 + 32.0)
-                                        }
-                                    ).size(24))
-                            )
+                                            format!(
+                                                "{:.0}°F",
+                                                self.temperature.maximum * 1.8 + 32.0
+                                            )
+                                        })
+                                        .size(24),
+                                    ),
+                            ),
                     )
                     .push(
                         Column::new()
@@ -538,28 +661,35 @@ impl Gpu {
                             .push(
                                 Column::new()
                                     .push(Text::new("Power Consumption").size(16))
-                                    .push(Text::new(format!("{:.0} Watts", self.power.current)).size(24))
+                                    .push(
+                                        Text::new(format!("{:.0} Watts", self.power.current))
+                                            .size(24),
+                                    ),
                             )
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Power Consumption").size(16))
-                                    .push(Text::new(format!("{:.0} Watts", self.power.maximum)).size(24))
-                            )
+                                    .push(
+                                        Text::new(format!("{:.0} Watts", self.power.maximum))
+                                            .size(24),
+                                    ),
+                            ),
                     )
                     .push(
                         Column::new()
                             .spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Fan Speed").size(16))
-                                    .push(Text::new(format!("{:.0} RPM", self.fan_speed.current)).size(24))
-                            )
+                            .push(Column::new().push(Text::new("Fan Speed").size(16)).push(
+                                Text::new(format!("{:.0} RPM", self.fan_speed.current)).size(24),
+                            ))
                             .push(
                                 Column::new()
                                     .push(Text::new("Max Fan Speed").size(16))
-                                    .push(Text::new(format!("{:.0} RPM", self.fan_speed.maximum)).size(24))
-                            )
-                    )
+                                    .push(
+                                        Text::new(format!("{:.0} RPM", self.fan_speed.maximum))
+                                            .size(24),
+                                    ),
+                            ),
+                    ),
             )
             .into()
     }

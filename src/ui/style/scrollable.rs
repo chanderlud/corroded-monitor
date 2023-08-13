@@ -1,7 +1,6 @@
-use iced::Color;
 use iced::widget::scrollable;
-use iced_style::scrollable::{Scrollbar, Scroller};
-use iced_style::Theme;
+use iced::widget::scrollable::{Scrollbar, Scroller};
+use iced::{color, BorderRadius, Theme};
 
 pub(crate) struct Scrollable;
 
@@ -12,28 +11,28 @@ impl scrollable::StyleSheet for Scrollable {
         match style {
             Theme::Light => Scrollbar {
                 background: None,
-                border_radius: 0.0,
-                border_width: 0.0,
+                border_radius: BorderRadius::from(0_f32),
+                border_width: 0_f32,
                 border_color: Default::default(),
                 scroller: Scroller {
-                    color: Color::from_rgb8(200, 200, 200).into(),
-                    border_radius: 4.0,
-                    border_width: 0.0,
-                    border_color: Default::default()
-                }
+                    color: color!(200, 200, 200),
+                    border_radius: BorderRadius::from(4_f32),
+                    border_width: 0_f32,
+                    border_color: Default::default(),
+                },
             },
             _ => Scrollbar {
                 background: None,
-                border_radius: 0.0,
-                border_width: 0.0,
+                border_radius: BorderRadius::from(0_f32),
+                border_width: 0_f32,
                 border_color: Default::default(),
                 scroller: Scroller {
-                    color: Color::from_rgb8(66, 67, 70).into(),
-                    border_radius: 4.0,
-                    border_width: 0.0,
-                    border_color: Default::default()
-                }
-            }
+                    color: color!(66, 67, 70),
+                    border_radius: BorderRadius::from(4_f32),
+                    border_width: 0_f32,
+                    border_color: Default::default(),
+                },
+            },
         }
     }
 
@@ -41,28 +40,36 @@ impl scrollable::StyleSheet for Scrollable {
         match style {
             Theme::Light => Scrollbar {
                 background: None,
-                border_radius: 0.0,
-                border_width: 0.0,
+                border_radius: BorderRadius::from(0_f32),
+                border_width: 0_f32,
                 border_color: Default::default(),
                 scroller: Scroller {
-                    color: if is_mouse_over_scrollbar { Color::from_rgb8(170, 170, 170).into() } else { Color::from_rgb8(200, 200, 200).into() },
-                    border_radius: 4.0,
-                    border_width: 0.0,
-                    border_color: Default::default()
-                }
+                    color: if is_mouse_over_scrollbar {
+                        color!(170, 170, 170)
+                    } else {
+                        color!(200, 200, 200)
+                    },
+                    border_radius: BorderRadius::from(4_f32),
+                    border_width: 0_f32,
+                    border_color: Default::default(),
+                },
             },
             _ => Scrollbar {
                 background: None,
-                border_radius: 0.0,
-                border_width: 0.0,
+                border_radius: BorderRadius::from(0_f32),
+                border_width: 0_f32,
                 border_color: Default::default(),
                 scroller: Scroller {
-                    color: if is_mouse_over_scrollbar { Color::from_rgb8(96, 97, 100).into() } else { Color::from_rgb8(66, 67, 70).into() },
-                    border_radius: 4.0,
-                    border_width: 0.0,
-                    border_color: Default::default()
-                }
-            }
+                    color: if is_mouse_over_scrollbar {
+                        color!(96, 97, 100)
+                    } else {
+                        color!(66, 67, 70)
+                    },
+                    border_radius: BorderRadius::from(4_f32),
+                    border_width: 0_f32,
+                    border_color: Default::default(),
+                },
+            },
         }
     }
 }

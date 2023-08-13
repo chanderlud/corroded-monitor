@@ -1,11 +1,10 @@
-use iced::{Alignment, Element, Length};
 use iced::widget::{Button, Column, Container, Row, Space, Text};
-use iced_style::theme;
+use iced::{theme, Alignment, Element, Length};
 
 use crate::system::{Data, Hardware};
-use crate::ui::{chart::LineGraph, Message, Route};
 use crate::ui::style::button::ComponentSelect;
 use crate::ui::style::container::GraphBox;
+use crate::ui::{chart::LineGraph, Message, Route};
 
 // ram widget
 #[derive(Debug, Clone)]
@@ -19,7 +18,8 @@ pub(crate) struct Ram {
 }
 
 impl Ram {
-    pub(crate) fn new() -> Self { // ram widget with default state
+    pub(crate) fn new() -> Self {
+        // ram widget with default state
         Self {
             name: String::new(),
             usage: Data::default(),
@@ -79,12 +79,14 @@ impl Ram {
 
     // large view of the widget, the ram page
     pub(crate) fn view_large(&self) -> Element<Message> {
-        Column::new().padding(20)
-            .push( // the top bar, no name for ram
-                   Row::new()
-                       .align_items(Alignment::Center)
-                       .height(Length::Fixed(30.0))
-                       .push(Text::new("RAM").size(28))
+        Column::new()
+            .padding(20)
+            .push(
+                // the top bar, no name for ram
+                Row::new()
+                    .align_items(Alignment::Center)
+                    .height(Length::Fixed(30.0))
+                    .push(Text::new("RAM").size(28)),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
@@ -97,45 +99,43 @@ impl Ram {
                         Container::new(self.load_graph.view())
                             .width(Length::Fill)
                             .height(Length::Fill)
-                            .style(theme::Container::Custom(Box::new(GraphBox::new((183, 53, 90)))))
-                    )
+                            .style(theme::Container::Custom(Box::new(GraphBox::new((
+                                183, 53, 90,
+                            ))))),
+                    ),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
                 Row::new() // the text stats area
                     .spacing(20)
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Utilization").size(16))
-                                    .push(Text::new(format!("{:.0}%", self.usage.current)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new()
+                                .push(Text::new("Utilization").size(16))
+                                .push(Text::new(format!("{:.0}%", self.usage.current)).size(24)),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Available").size(16))
-                                    .push(Text::new(format!("{:.2} GB", self.available.current)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Available").size(16)).push(
+                                Text::new(format!("{:.2} GB", self.available.current)).size(24),
+                            ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Used").size(16))
-                                    .push(Text::new(format!("{:.2} GB", self.used.current)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new()
+                                .push(Text::new("Used").size(16))
+                                .push(Text::new(format!("{:.2} GB", self.used.current)).size(24)),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Total").size(16))
-                                    .push(Text::new(format!("{:.0} GB", self.total)).size(24))
-                            )
-                    )
+                        Column::new().spacing(5).push(
+                            Column::new()
+                                .push(Text::new("Total").size(16))
+                                .push(Text::new(format!("{:.0} GB", self.total)).size(24)),
+                        ),
+                    ),
             )
             .into()
     }

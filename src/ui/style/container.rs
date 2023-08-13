@@ -1,7 +1,6 @@
-use iced::Color;
 use iced::widget::container;
-use iced_style::container::Appearance;
-use iced_style::Theme;
+use iced::widget::container::Appearance;
+use iced::{color, BorderRadius, Color, Theme};
 
 pub(crate) struct MainBox;
 
@@ -12,18 +11,18 @@ impl container::StyleSheet for MainBox {
         match style {
             Theme::Light => Appearance {
                 text_color: None,
-                background: Color::from_rgb8(242, 242, 249).into(),
-                border_radius: 0.0,
-                border_width: 0.0,
+                background: Some(color!(242, 242, 249).into()),
+                border_radius: BorderRadius::from(0_f32),
+                border_width: 0_f32,
                 border_color: Default::default(),
             },
             _ => Appearance {
                 text_color: Color::WHITE.into(),
-                background: Color::from_rgb8(20, 20, 23).into(),
-                border_radius: 0.0,
-                border_width: 0.0,
+                background: Some(color!(20, 20, 23).into()),
+                border_radius: BorderRadius::from(0_f32),
+                border_width: 0_f32,
                 border_color: Default::default(),
-            }
+            },
         }
     }
 }
@@ -37,18 +36,18 @@ impl container::StyleSheet for SecondaryBox {
         match style {
             Theme::Light => Appearance {
                 text_color: None,
-                background: Color::from_rgb8(230, 230, 230).into(),
-                border_radius: 0.0,
-                border_width: 0.0,
+                background: Some(color!(230, 230, 230).into()),
+                border_radius: BorderRadius::from(0_f32),
+                border_width: 0_f32,
                 border_color: Default::default(),
             },
             _ => Appearance {
                 text_color: Color::WHITE.into(),
-                background: Color::from_rgb8(36, 37, 40).into(),
-                border_radius: 0.0,
-                border_width: 0.0,
+                background: Some(color!(36, 37, 40).into()),
+                border_radius: BorderRadius::from(0_f32),
+                border_width: 0_f32,
                 border_color: Default::default(),
-            }
+            },
         }
     }
 }
@@ -61,9 +60,9 @@ impl container::StyleSheet for TertiaryBox {
     fn appearance(&self, _style: &Self::Style) -> Appearance {
         Appearance {
             text_color: Color::WHITE.into(),
-            background: Color::from_rgb8(34, 34, 38).into(),
-            border_radius: 0.0,
-            border_width: 0.0,
+            background: Some(color!(34, 34, 38).into()),
+            border_radius: BorderRadius::from(0_f32),
+            border_width: 0_f32,
             border_color: Default::default(),
         }
     }
@@ -76,7 +75,7 @@ pub(crate) struct GraphBox {
 impl GraphBox {
     pub(crate) fn new(color: (u8, u8, u8)) -> Self {
         Self {
-            color: Color::from_rgb8(color.0, color.1, color.2),
+            color: color!(color.0, color.1, color.2),
         }
     }
 }
@@ -88,18 +87,18 @@ impl container::StyleSheet for GraphBox {
         match style {
             Theme::Light => Appearance {
                 text_color: None,
-                background: Color::TRANSPARENT.into(),
-                border_radius: 4.0,
-                border_width: 2.0,
-                border_color: self.color.into(),
+                background: Some(Color::TRANSPARENT.into()),
+                border_radius: BorderRadius::from(4_f32),
+                border_width: 2_f32,
+                border_color: self.color,
             },
             _ => Appearance {
                 text_color: None,
-                background: Color::from_rgb8(34, 34, 38).into(),
-                border_radius: 4.0,
-                border_width: 1.0,
-                border_color: self.color.into(),
-            }
+                background: Some(color!(34, 34, 38).into()),
+                border_radius: BorderRadius::from(4_f32),
+                border_width: 1_f32,
+                border_color: self.color,
+            },
         }
     }
 }

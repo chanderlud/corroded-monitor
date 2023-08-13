@@ -1,11 +1,11 @@
-use iced::{Alignment, Element, Length};
 use iced::widget::{Button, Column, Container, Row, Space, Text};
-use iced_style::theme;
+use iced::{theme, Alignment, Element, Length};
+
 use crate::system::{Data, Hardware};
-use crate::ui::{Message, Route};
 use crate::ui::chart::LineGraph;
 use crate::ui::style::button::ComponentSelect;
 use crate::ui::style::container::GraphBox;
+use crate::ui::{Message, Route};
 
 #[derive(Debug, Clone)]
 pub(crate) struct NetworkAdapter {
@@ -96,14 +96,16 @@ impl NetworkAdapter {
 
     // large view of the widget, the network page
     pub(crate) fn view_large(&self) -> Element<Message> {
-        Column::new().padding(20)
-            .push( // the top bar
-                   Row::new()
-                       .align_items(Alignment::Center)
-                       .height(Length::Fixed(30.0))
-                       .push(Text::new(format!("Network {}", self.index)).size(28))
-                       .push(Space::new(Length::Fill, Length::Shrink))
-                       .push(Text::new(&self.name))
+        Column::new()
+            .padding(20)
+            .push(
+                // the top bar
+                Row::new()
+                    .align_items(Alignment::Center)
+                    .height(Length::Fixed(30.0))
+                    .push(Text::new(format!("Network {}", self.index)).size(28))
+                    .push(Space::new(Length::Fill, Length::Shrink))
+                    .push(Text::new(&self.name)),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
@@ -111,62 +113,76 @@ impl NetworkAdapter {
                     .spacing(5)
                     .width(Length::Fill)
                     .height(Length::FillPortion(1))
-                    .push(Row::new()
-                        .push(Text::new(format!("Throughput (0-{:.0} MB/s)", self.throughput_graph.maximum_value / 1_000_000)).size(14))
-                        .push(Space::new(Length::Fill, Length::Shrink))
-                        .width(Length::Fill)
+                    .push(
+                        Row::new()
+                            .push(
+                                Text::new(format!(
+                                    "Throughput (0-{:.0} MB/s)",
+                                    self.throughput_graph.maximum_value / 1_000_000
+                                ))
+                                .size(14),
+                            )
+                            .push(Space::new(Length::Fill, Length::Shrink))
+                            .width(Length::Fill),
                     )
                     .push(
                         Container::new(self.throughput_graph.view())
                             .width(Length::Fill)
                             .height(Length::Fill)
-                            .style(theme::Container::Custom(Box::new(GraphBox::new((195, 177, 225)))))
-                    )
+                            .style(theme::Container::Custom(Box::new(GraphBox::new((
+                                195, 177, 225,
+                            ))))),
+                    ),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
                 Row::new() // the text stats area
                     .spacing(20)
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Downloaded").size(16))
-                                    .push(Text::new(format!("{:.1} GB", self.downloaded.current)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Downloaded").size(16)).push(
+                                Text::new(format!("{:.1} GB", self.downloaded.current)).size(24),
+                            ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Uploaded").size(16))
-                                    .push(Text::new(format!("{:.1} GB", self.uploaded.current)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Uploaded").size(16)).push(
+                                Text::new(format!("{:.1} GB", self.uploaded.current)).size(24),
+                            ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Download Speed").size(16))
-                                    .push(Text::new(format!("{:.2} MB/s", self.download_speed.current / 1_000_000_f32)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new()
+                                .push(Text::new("Download Speed").size(16))
+                                .push(
+                                    Text::new(format!(
+                                        "{:.2} MB/s",
+                                        self.download_speed.current / 1_000_000_f32
+                                    ))
+                                    .size(24),
+                                ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Upload Speed").size(16))
-                                    .push(Text::new(format!("{:.2} MB/s", self.upload_speed.current / 1_000_000_f32)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Upload Speed").size(16)).push(
+                                Text::new(format!(
+                                    "{:.2} MB/s",
+                                    self.upload_speed.current / 1_000_000_f32
+                                ))
+                                .size(24),
+                            ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Utilization").size(16))
-                                    .push(Text::new(format!("{:.1}%", self.utilization.current)).size(24))
-                            )
-                    )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Utilization").size(16)).push(
+                                Text::new(format!("{:.1}%", self.utilization.current)).size(24),
+                            ),
+                        ),
+                    ),
             )
             .into()
     }

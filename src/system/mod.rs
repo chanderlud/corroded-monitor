@@ -3,24 +3,24 @@ use std::ffi::{c_char, c_void, CStr};
 use std::fmt;
 use std::sync::Arc;
 
-use serde::{de, Deserialize, Deserializer};
 use serde::de::Visitor;
+use serde::{de, Deserialize, Deserializer};
 use serde_json::from_slice;
 use tokio::sync::Mutex;
 use tokio::task::spawn_blocking;
 
-use crate::{CreateHardwareMonitor, GetReport, UpdateHardwareMonitor};
 use crate::cpu::Cpu;
 use crate::gpu::Gpu;
 use crate::ram::Ram;
 use crate::storage::Storage;
 use crate::system::network::NetworkAdapter;
+use crate::{CreateHardwareMonitor, GetReport, UpdateHardwareMonitor};
 
-pub(crate) mod gpu;
-pub(crate) mod ram;
 pub(crate) mod cpu;
-pub(crate) mod storage;
+pub(crate) mod gpu;
 pub(crate) mod network;
+pub(crate) mod ram;
+pub(crate) mod storage;
 
 // a wrapper around the hardware monitor reference
 #[derive(Debug)]
@@ -37,7 +37,9 @@ impl HardwareMonitor {
         spawn_blocking(|| {
             let inner = unsafe { CreateHardwareMonitor() };
             Arc::new(Mutex::new(Self { inner }))
-        }).await.unwrap()
+        })
+        .await
+        .unwrap()
     }
 }
 
@@ -50,7 +52,7 @@ pub(crate) struct SystemStats {
     pub(crate) gpus: Vec<Gpu>,
     pub(crate) ram: Ram,
     pub(crate) disks: Vec<Storage>, // support multiple disks
-    pub(crate) network_adapters: Vec<NetworkAdapter>
+    pub(crate) network_adapters: Vec<NetworkAdapter>,
 }
 
 impl SystemStats {
@@ -65,7 +67,10 @@ impl SystemStats {
     }
 
     // update stats
-    pub(crate) async fn update(mut self, monitor: Arc<Mutex<HardwareMonitor>>) -> (Self, HashMap<String, bool>) {
+    pub(crate) async fn update(
+        mut self,
+        monitor: Arc<Mutex<HardwareMonitor>>,
+    ) -> Box<(Self, HashMap<String, bool>)> {
         // fetch data from OHM API, spawn_blocking is used to prevent blocking
         let hardware_data: serde_json::Result<Vec<Hardware>> = spawn_blocking({
             move || {
@@ -79,7 +84,9 @@ impl SystemStats {
                 let report = unsafe { CStr::from_ptr(buffer.as_ptr()) }; // convert buffer to CStr
                 from_slice(report.to_bytes()) // deserialize CStr to Vec<Hardware>
             }
-        }).await.unwrap(); // unwrap thread, should never panic
+        })
+        .await
+        .unwrap(); // unwrap thread, should never panic
 
         let mut visibility = HashMap::new();
 
@@ -140,10 +147,13 @@ impl SystemStats {
                     }
                 }
             }
-            Err(e) => println!("an error occurred while fetching data from OHM API: {:?}", e)
+            Err(e) => println!(
+                "an error occurred while fetching data from OHM API: {:?}",
+                e
+            ),
         }
 
-        (self, visibility)
+        Box::new((self, visibility))
     }
 }
 
@@ -190,8 +200,8 @@ pub(crate) struct Sensor {
 }
 
 fn deserialize_f32_or_nan_as_zero<'de, D>(deserializer: D) -> Result<f32, D::Error>
-    where
-        D: Deserializer<'de>,
+where
+    D: Deserializer<'de>,
 {
     struct F32OrNaNAsZeroVisitor;
 
@@ -210,7 +220,10 @@ fn deserialize_f32_or_nan_as_zero<'de, D>(deserializer: D) -> Result<f32, D::Err
             if value.to_lowercase() == "nan" || value.to_lowercase() == "infinity" {
                 Ok(0.0)
             } else {
-                Err(E::custom(format!("expected \"NaN\" or a float, got {}", value)))
+                Err(E::custom(format!(
+                    "expected \"NaN\" or a float, got {}",
+                    value
+                )))
             }
         }
     }
@@ -239,8 +252,8 @@ pub(crate) enum HardwareType {
 // deserialize hardware type from int
 impl<'de> Deserialize<'de> for HardwareType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         let num = i32::deserialize(deserializer)?;
 
@@ -258,7 +271,9 @@ impl<'de> Deserialize<'de> for HardwareType {
             10 => Ok(Self::EmbeddedController),
             11 => Ok(Self::Psu),
             12 => Ok(Self::Battery),
-            _ => Err(de::Error::custom("Unexpected integer value for HardwareType"))
+            _ => Err(de::Error::custom(
+                "Unexpected integer value for HardwareType",
+            )),
         }
     }
 }
@@ -307,8 +322,8 @@ pub(crate) enum SensorType {
 // deserialize sensor type from int
 impl<'de> Deserialize<'de> for SensorType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         let num = i32::deserialize(deserializer)?;
 
@@ -331,7 +346,7 @@ impl<'de> Deserialize<'de> for SensorType {
             15 => Ok(Self::TimeSpan),
             16 => Ok(Self::Energy),
             17 => Ok(Self::Noise),
-            _ => Err(de::Error::custom("Unexpected integer value for SensorType"))
+            _ => Err(de::Error::custom("Unexpected integer value for SensorType")),
         }
     }
 }

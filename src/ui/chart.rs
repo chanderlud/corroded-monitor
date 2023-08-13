@@ -83,20 +83,22 @@ impl Chart<Message> for LineGraph {
         chart
             .configure_mesh()
             .disable_axes()
-            .light_line_style(ShapeStyle { color: TRANSPARENT, filled: false, stroke_width: 0 })
-            .draw().unwrap();
+            .light_line_style(ShapeStyle {
+                color: TRANSPARENT,
+                filled: false,
+                stroke_width: 0,
+            })
+            .draw()
+            .unwrap();
 
         chart
             .draw_series(
                 AreaSeries::new(
                     self.data_points.iter().map(|x| (x.0, x.1)),
                     0,
-                    &color.mix(0.03), // the partially transparent area under the line
+                    color.mix(0.03), // the partially transparent area under the line
                 )
-                    .border_style(
-                        ShapeStyle::from(&color)
-                            .stroke_width(1)
-                    ),
+                .border_style(ShapeStyle::from(&color).stroke_width(1)),
             )
             .expect("failed to draw chart data");
     }

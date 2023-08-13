@@ -1,10 +1,6 @@
 use std::env;
 use std::path::PathBuf;
 
-use bindgen;
-use embed_resource;
-use winres;
-
 fn main() {
     println!("cargo:rustc-link-search=native=LibreHardwareMonitorAPI\\x64\\Release");
     println!("cargo:rustc-link-lib=dylib=ManagedLibreHardwareMonitorWrapper");
@@ -26,5 +22,6 @@ fn main() {
 
     winres::WindowsResource::new()
         .set_icon("icon.ico")
-        .compile().expect("failed to add icon to executable");
+        .compile()
+        .expect("failed to add icon to executable");
 }

@@ -1,7 +1,6 @@
-use iced::Color;
 use iced::widget::toggler;
-use iced_style::Theme;
-use iced_style::toggler::Appearance;
+use iced::widget::toggler::Appearance;
+use iced::{color, Theme};
 
 pub(crate) struct Toggler;
 
@@ -11,34 +10,34 @@ impl toggler::StyleSheet for Toggler {
     fn active(&self, style: &Self::Style, _is_active: bool) -> Appearance {
         match style {
             Theme::Light => Appearance {
-                background: Color::from_rgb8(183, 53, 90).into(),
+                background: color!(183, 53, 90),
                 background_border: None,
-                foreground: Color::from_rgb8(200, 200, 200).into(),
+                foreground: color!(200, 200, 200),
                 foreground_border: None,
             },
             _ => Appearance {
-                background: Color::from_rgb8(0, 255, 255).into(),
+                background: color!(0, 255, 255),
                 background_border: None,
-                foreground: Color::from_rgb8(36, 37, 40).into(),
+                foreground: color!(36, 37, 40),
                 foreground_border: None,
-            }
+            },
         }
     }
 
     fn hovered(&self, style: &Self::Style, _is_active: bool) -> Appearance {
         match style {
             Theme::Light => Appearance {
-                background: Color::from_rgb8(153, 23, 60).into(),
+                background: color!(153, 23, 60),
                 background_border: None,
-                foreground: Color::from_rgb8(170, 170, 170).into(),
+                foreground: color!(170, 170, 170),
                 foreground_border: None,
             },
             _ => Appearance {
-                background: Color::from_rgb8(0, 210, 210).into(),
+                background: color!(0, 210, 210),
                 background_border: None,
-                foreground: Color::from_rgb8(30, 30, 30).into(),
+                foreground: color!(30, 30, 30),
                 foreground_border: None,
-            }
+            },
         }
     }
 }
@@ -51,34 +50,50 @@ impl toggler::StyleSheet for VisibilityToggler {
     fn active(&self, style: &Self::Style, is_active: bool) -> Appearance {
         match style {
             Theme::Light => Appearance {
-                background: if is_active { Color::from_rgb8(183, 53, 90).into() } else { Color::from_rgb8(180, 180, 180).into() },
+                background: if is_active {
+                    color!(183, 53, 90)
+                } else {
+                    color!(180, 180, 180)
+                },
                 background_border: None,
-                foreground: Color::from_rgb8(220, 220, 220).into(),
+                foreground: color!(220, 220, 220),
                 foreground_border: None,
             },
             _ => Appearance {
-                background: if is_active { Color::from_rgb8(0, 255, 255).into() } else { Color::from_rgb8(180, 180, 180).into() },
+                background: if is_active {
+                    color!(0, 255, 255)
+                } else {
+                    color!(180, 180, 180)
+                },
                 background_border: None,
-                foreground: Color::from_rgb8(36, 37, 40).into(),
+                foreground: color!(36, 37, 40),
                 foreground_border: None,
-            }
+            },
         }
     }
 
     fn hovered(&self, style: &Self::Style, is_active: bool) -> Appearance {
         match style {
             Theme::Light => Appearance {
-                background: if is_active { Color::from_rgb8(153, 23, 60).into() } else { Color::from_rgb8(180, 180, 180).into() },
+                background: if is_active {
+                    color!(153, 23, 60)
+                } else {
+                    color!(180, 180, 180)
+                },
                 background_border: None,
-                foreground: Color::from_rgb8(250, 250, 250).into(),
+                foreground: color!(250, 250, 250),
                 foreground_border: None,
             },
             _ => Appearance {
-                background: if is_active { Color::from_rgb8(0, 225, 225).into() } else { Color::from_rgb8(150, 150, 150).into() },
+                background: if is_active {
+                    color!(0, 225, 225)
+                } else {
+                    color!(150, 150, 150)
+                },
                 background_border: None,
-                foreground: Color::from_rgb8(30, 30, 30).into(),
+                foreground: color!(30, 30, 30),
                 foreground_border: None,
-            }
+            },
         }
     }
 }

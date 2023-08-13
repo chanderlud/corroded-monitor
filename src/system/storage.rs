@@ -1,15 +1,14 @@
 use std::rc::Rc;
 
-use iced::{Alignment, Element, Length};
 use iced::widget::{Button, Column, Container, PickList, Row, Space, Text};
-use iced_style::theme;
+use iced::{theme, Alignment, Element, Length};
 
 use crate::system::{Data, Hardware};
-use crate::ui::{Message, Route};
 use crate::ui::chart::LineGraph;
 use crate::ui::style::button::ComponentSelect;
 use crate::ui::style::container::GraphBox;
 use crate::ui::style::pick_list::PickList as PickListStyle;
+use crate::ui::{Message, Route};
 
 // possible graph types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,20 +18,19 @@ pub enum GraphState {
 }
 
 impl GraphState {
-    pub const ALL: [Self; 2] = [
-        Self::Activity,
-        Self::Temperature
-    ];
+    pub const ALL: [Self; 2] = [Self::Activity, Self::Temperature];
 }
 
 // the text for the pick list
 impl std::fmt::Display for GraphState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}",
-               match self {
-                   Self::Activity => "Activity",
-                   Self::Temperature => "Temperature",
-               }
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Activity => "Activity",
+                Self::Temperature => "Temperature",
+            }
         )
     }
 }
@@ -151,14 +149,16 @@ impl Storage {
 
     // large view of the widget, the storage page
     pub(crate) fn view_large(&self, celsius: bool) -> Element<Message> {
-        Column::new().padding(20)
-            .push( // the top bar
-                   Row::new()
-                       .align_items(Alignment::Center)
-                       .height(Length::Fixed(30.0))
-                       .push(Text::new(format!("Disk {}", self.index)).size(28))
-                       .push(Space::new(Length::Fill, Length::Shrink))
-                       .push(Text::new(&self.name))
+        Column::new()
+            .padding(20)
+            .push(
+                // the top bar
+                Row::new()
+                    .align_items(Alignment::Center)
+                    .height(Length::Fixed(30.0))
+                    .push(Text::new(format!("Disk {}", self.index)).size(28))
+                    .push(Space::new(Length::Fill, Length::Shrink))
+                    .push(Text::new(&self.name)),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
@@ -166,39 +166,58 @@ impl Storage {
                     .spacing(5)
                     .width(Length::Fill)
                     .height(Length::FillPortion(1))
-                    .push(Row::new()
-                        .push(
-                            match self.graph_state {
-                                GraphState::Activity => Text::new(format!("Activity (0-{:.2}%)", self.activity_graph.maximum_value)).size(14),
-                                GraphState::Temperature => Text::new(
-                                    if celsius {
-                                        format!("Temperature (0-{:.0}°C)", self.temperature_graph.maximum_value)
-                                    } else {
-                                        format!("Temperature (0-{:.0}°F)", self.temperature_graph.maximum_value as f32 * 1.8 + 32.0)
-                                    }
-                                ).size(14),
-                            }
-                        )
-                        .push(Space::new(Length::Fill, Length::Shrink))
-                        .push(PickList::new(&GraphState::ALL[..], Some(self.graph_state), Message::StoragePickChanged) // the picklist for the different graph types
-                            .text_size(14)
-                            .width(Length::Fixed(120.0))
-                            .padding(0)
-                            .style(theme::PickList::Custom(Rc::new(PickListStyle), Rc::new(PickListStyle)))
-                        )
-                        .width(Length::Fill)
+                    .push(
+                        Row::new()
+                            .push(match self.graph_state {
+                                GraphState::Activity => Text::new(format!(
+                                    "Activity (0-{:.2}%)",
+                                    self.activity_graph.maximum_value
+                                ))
+                                .size(14),
+                                GraphState::Temperature => Text::new(if celsius {
+                                    format!(
+                                        "Temperature (0-{:.0}°C)",
+                                        self.temperature_graph.maximum_value
+                                    )
+                                } else {
+                                    format!(
+                                        "Temperature (0-{:.0}°F)",
+                                        self.temperature_graph.maximum_value as f32 * 1.8 + 32.0
+                                    )
+                                })
+                                .size(14),
+                            })
+                            .push(Space::new(Length::Fill, Length::Shrink))
+                            .push(
+                                PickList::new(
+                                    &GraphState::ALL[..],
+                                    Some(self.graph_state),
+                                    Message::StoragePickChanged,
+                                ) // the picklist for the different graph types
+                                .text_size(14)
+                                .width(Length::Fixed(120.0))
+                                .padding(0)
+                                .style(theme::PickList::Custom(
+                                    Rc::new(PickListStyle),
+                                    Rc::new(PickListStyle),
+                                )),
+                            )
+                            .width(Length::Fill),
                     )
                     .push(
-                        Container::new( // the actual graph
-                                        match self.graph_state {
-                                            GraphState::Activity => self.activity_graph.view(),
-                                            GraphState::Temperature => self.temperature_graph.view(),
-                                        }
+                        Container::new(
+                            // the actual graph
+                            match self.graph_state {
+                                GraphState::Activity => self.activity_graph.view(),
+                                GraphState::Temperature => self.temperature_graph.view(),
+                            },
                         )
-                            .width(Length::Fill)
-                            .height(Length::Fill)
-                            .style(theme::Container::Custom(Box::new(GraphBox::new((119, 221, 119)))))
-                    )
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .style(theme::Container::Custom(Box::new(GraphBox::new((
+                            119, 221, 119,
+                        ))))),
+                    ),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
@@ -208,13 +227,21 @@ impl Storage {
                         Column::new()
                             .spacing(5)
                             .width(Length::Fill)
-                            .push(Text::new(format!("Read Rate (0-{:.2} MB/s)", self.read_graph.maximum_value / 1_000_000)).size(14))
+                            .push(
+                                Text::new(format!(
+                                    "Read Rate (0-{:.2} MB/s)",
+                                    self.read_graph.maximum_value / 1_000_000
+                                ))
+                                .size(14),
+                            )
                             .push(
                                 Container::new(self.read_graph.view())
                                     .width(Length::Fill)
                                     .height(Length::Fill)
-                                    .style(theme::Container::Custom(Box::new(GraphBox::new((119, 221, 119)))))
-                            )
+                                    .style(theme::Container::Custom(Box::new(GraphBox::new((
+                                        119, 221, 119,
+                                    ))))),
+                            ),
                     )
                     .push(Space::new(Length::Fixed(20.0), Length::Shrink))
                     .push(
@@ -222,81 +249,97 @@ impl Storage {
                             .spacing(5)
                             .width(Length::Fill)
                             .height(Length::FillPortion(1))
-                            .push(Text::new(format!("Write Rate (0-{:.2} MB/s)", self.write_graph.maximum_value / 1_000_000)).size(14))
+                            .push(
+                                Text::new(format!(
+                                    "Write Rate (0-{:.2} MB/s)",
+                                    self.write_graph.maximum_value / 1_000_000
+                                ))
+                                .size(14),
+                            )
                             .push(
                                 Container::new(self.write_graph.view())
                                     .width(Length::Fill)
                                     .height(Length::Fill)
-                                    .style(theme::Container::Custom(Box::new(GraphBox::new((119, 221, 119)))))
-                            )
-                    )
+                                    .style(theme::Container::Custom(Box::new(GraphBox::new((
+                                        119, 221, 119,
+                                    ))))),
+                            ),
+                    ),
             )
             .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
             .push(
                 Row::new() // the text stats area
                     .spacing(20)
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Used Capacity").size(16))
-                                    .push(Text::new(format!("{:.2}%", self.used_capacity.current)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new()
+                                .push(Text::new("Used Capacity").size(16))
+                                .push(
+                                    Text::new(format!("{:.2}%", self.used_capacity.current))
+                                        .size(24),
+                                ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Temperature").size(16))
-                                    .push(Text::new(
-                                        if celsius {
-                                            format!("{:.0}°C", self.temperature.current)
-                                        } else {
-                                            format!("{:.0}°F", self.temperature.current * 1.8 + 32.0)
-                                        }
-                                    ).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Temperature").size(16)).push(
+                                Text::new(if celsius {
+                                    format!("{:.0}°C", self.temperature.current)
+                                } else {
+                                    format!("{:.0}°F", self.temperature.current * 1.8 + 32.0)
+                                })
+                                .size(24),
+                            ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Data Read").size(16))
-                                    .push(Text::new(format!("{:.0} TB", self.data_read.current / 1_000_f32)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Data Read").size(16)).push(
+                                Text::new(format!("{:.0} TB", self.data_read.current / 1_000_f32))
+                                    .size(24),
+                            ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Data Written").size(16))
-                                    .push(Text::new(format!("{:.0} TB", self.data_written.current / 1_000_f32)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Data Written").size(16)).push(
+                                Text::new(format!(
+                                    "{:.0} TB",
+                                    self.data_written.current / 1_000_f32
+                                ))
+                                .size(24),
+                            ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Disk Activity").size(16))
-                                    .push(Text::new(format!("{:.1}%", self.activity.current)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new()
+                                .push(Text::new("Disk Activity").size(16))
+                                .push(Text::new(format!("{:.1}%", self.activity.current)).size(24)),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Read Rate").size(16))
-                                    .push(Text::new(format!("{:.1} MB/s", self.read_rate.current / 1_000_000_f32)).size(24))
-                            )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Read Rate").size(16)).push(
+                                Text::new(format!(
+                                    "{:.1} MB/s",
+                                    self.read_rate.current / 1_000_000_f32
+                                ))
+                                .size(24),
+                            ),
+                        ),
                     )
                     .push(
-                        Column::new().spacing(5)
-                            .push(
-                                Column::new()
-                                    .push(Text::new("Write Rate").size(16))
-                                    .push(Text::new(format!("{:.1} MB/s", self.write_rate.current / 1_000_000_f32)).size(24))
-                            )
-                    )
+                        Column::new().spacing(5).push(
+                            Column::new().push(Text::new("Write Rate").size(16)).push(
+                                Text::new(format!(
+                                    "{:.1} MB/s",
+                                    self.write_rate.current / 1_000_000_f32
+                                ))
+                                .size(24),
+                            ),
+                        ),
+                    ),
             )
             .into()
     }
