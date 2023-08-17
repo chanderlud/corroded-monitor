@@ -5,7 +5,9 @@ use std::time::Duration;
 
 use iced::time::every;
 use iced::widget::scrollable::{Direction, Properties};
-use iced::widget::{Button, Column, Container, PickList, Row, Scrollable, Space, Text, Toggler};
+use iced::widget::{
+    column, Button, Column, Container, PickList, Row, Scrollable, Space, Text, Toggler,
+};
 use iced::{executor, theme, Alignment, Command, Length, Padding, Subscription};
 use iced::{Application, Element, Theme as IcedTheme};
 use tokio::sync::Mutex;
@@ -151,31 +153,31 @@ impl Application for App {
     // the base of the GUI
     fn view(&self) -> Element<'_, Self::Message> {
         // build the side bar with the visible hardware
-        let mut side_bar = Column::new();
+        let mut side_bar_items = Vec::new();
 
         if self.config.is_visible(&self.stats.cpu.name) {
-            side_bar = side_bar.push(self.stats.cpu.view_small(self.config.celsius));
+            side_bar_items.push(self.stats.cpu.view_small(self.config.celsius))
         }
 
         for gpu in &self.stats.gpus {
             if self.config.is_visible(&gpu.name) {
-                side_bar = side_bar.push(gpu.view_small(self.config.celsius));
+                side_bar_items.push(gpu.view_small(self.config.celsius))
             }
         }
 
         if self.config.is_visible(&self.stats.ram.name) {
-            side_bar = side_bar.push(self.stats.ram.view_small());
+            side_bar_items.push(self.stats.ram.view_small())
         }
 
         for disk in &self.stats.disks {
             if self.config.is_visible(&disk.name) {
-                side_bar = side_bar.push(disk.view_small(self.config.celsius));
+                side_bar_items.push(disk.view_small(self.config.celsius))
             }
         }
 
         for adapter in &self.stats.network_adapters {
             if self.config.is_visible(&adapter.name) {
-                side_bar = side_bar.push(adapter.view_small());
+                side_bar_items.push(adapter.view_small())
             }
         }
 
@@ -207,7 +209,7 @@ impl Application for App {
             .push(
                 Container::new(
                     Scrollable::new(
-                        side_bar
+                        column(side_bar_items)
                             .push(Space::new(Length::Fill, Length::Fixed(10.0)))
                             .push(
                                 Row::new()
@@ -322,7 +324,7 @@ impl Application for App {
                             )
                             .push(Space::new(Length::Shrink, Length::Fixed(10.0))) // extra space before visibility options
                             .push(Text::new("Visibility").size(28)) // visibility options title
-                            .push(Column::with_children(visibility_options).spacing(10)), // build a column of visibility options
+                            .push(column(visibility_options).spacing(10)), // build a column of visibility options
                     )
                     .style(theme::Scrollable::Custom(Box::new(ScrollableStyle))) // styling for the scrollable
                     .direction(Direction::Vertical(

@@ -1,4 +1,4 @@
-use iced::widget::{Button, Column, Container, Row, Space, Text};
+use iced::widget::{button, column, container, horizontal_space, row, text, vertical_space};
 use iced::{theme, Alignment, Element, Length};
 
 use crate::system::{Data, Hardware};
@@ -25,7 +25,7 @@ impl Ram {
             usage: Data::default(),
             used: Data::default(),
             available: Data::default(),
-            total: 0.0,
+            total: 0_f32,
             load_graph: LineGraph::new((183, 53, 90)),
         }
     }
@@ -52,91 +52,79 @@ impl Ram {
     // small view of the widget located in the sidebar
     pub(crate) fn view_small(&self) -> Element<Message> {
         // the entire widget is a button
-        Button::new(
-            Row::new()
-                .align_items(Alignment::Center)
-                .push(Space::new(Length::Fixed(5.0), Length::Shrink))
-                .push(
-                    Container::new(self.load_graph.view()) // it contains the ram load graph
-                        .style(theme::Container::Custom(Box::new(GraphBox::new((183, 53, 90)))))
-                        .width(Length::Fixed(70.0))
-                        .height(Length::Fixed(60.0))
+        button(
+            row!(
+                horizontal_space(Length::Fixed(5_f32)),
+                container(self.load_graph.view()) // it contains the ram load graph
+                    .style(theme::Container::Custom(Box::new(GraphBox::new((
+                        183, 53, 90
+                    )))))
+                    .width(Length::Fixed(70_f32))
+                    .height(Length::Fixed(60_f32)),
+                horizontal_space(Length::Fixed(10_f32)),
+                column!(
+                    text("RAM"),
+                    text(format!(
+                        "{:.1}/{:.0} GB  {:.0}%",
+                        self.used.current, self.total, self.usage.current
+                    ))
+                    .size(14),
                 )
-                .push(Space::new(Length::Fixed(10.0), Length::Shrink))
-                .push(
-                    Column::new() // this is the text on the right side of the graph with stats summary
-                        .spacing(3)
-                        .push(Text::new("RAM"))
-                        .push(Text::new(format!("{:.1}/{:.0} GB  {:.0}%", self.used.current, self.total, self.usage.current)).size(14))
-                )
+                .spacing(3)
+            )
+            .align_items(Alignment::Center),
         )
-            .on_press(Message::Navigate(Route::Ram))
-            .style(theme::Button::Custom(Box::new(ComponentSelect)))
-            .width(Length::Fill)
-            .height(Length::Fixed(75.0))
-            .into()
+        .on_press(Message::Navigate(Route::Ram))
+        .style(theme::Button::Custom(Box::new(ComponentSelect)))
+        .width(Length::Fill)
+        .height(Length::Fixed(75_f32))
+        .into()
     }
 
     // large view of the widget, the ram page
     pub(crate) fn view_large(&self) -> Element<Message> {
-        Column::new()
-            .padding(20)
-            .push(
-                // the top bar, no name for ram
-                Row::new()
-                    .align_items(Alignment::Center)
-                    .height(Length::Fixed(30.0))
-                    .push(Text::new("RAM").size(28)),
-            )
-            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
-            .push(
-                Column::new() // only the single graph for ram and no variants
-                    .spacing(5)
+        column!(
+            // title bar
+            row!(text("RAM").size(28))
+                .align_items(Alignment::Center)
+                .height(Length::Fixed(30_f32)),
+            vertical_space(Length::Fixed(20_f32)),
+            // ram load graph
+            column!(
+                text("Memory Utilization").size(14),
+                container(self.load_graph.view())
                     .width(Length::Fill)
-                    .height(Length::FillPortion(1))
-                    .push(Text::new("Memory Utilization").size(14))
-                    .push(
-                        Container::new(self.load_graph.view())
-                            .width(Length::Fill)
-                            .height(Length::Fill)
-                            .style(theme::Container::Custom(Box::new(GraphBox::new((
-                                183, 53, 90,
-                            ))))),
-                    ),
+                    .height(Length::Fill)
+                    .style(theme::Container::Custom(Box::new(GraphBox::new((
+                        183, 53, 90,
+                    ))))),
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
-            .push(
-                Row::new() // the text stats area
-                    .spacing(20)
-                    .push(
-                        Column::new().spacing(5).push(
-                            Column::new()
-                                .push(Text::new("Utilization").size(16))
-                                .push(Text::new(format!("{:.0}%", self.usage.current)).size(24)),
-                        ),
-                    )
-                    .push(
-                        Column::new().spacing(5).push(
-                            Column::new().push(Text::new("Available").size(16)).push(
-                                Text::new(format!("{:.2} GB", self.available.current)).size(24),
-                            ),
-                        ),
-                    )
-                    .push(
-                        Column::new().spacing(5).push(
-                            Column::new()
-                                .push(Text::new("Used").size(16))
-                                .push(Text::new(format!("{:.2} GB", self.used.current)).size(24)),
-                        ),
-                    )
-                    .push(
-                        Column::new().spacing(5).push(
-                            Column::new()
-                                .push(Text::new("Total").size(16))
-                                .push(Text::new(format!("{:.0} GB", self.total)).size(24)),
-                        ),
-                    ),
+            .spacing(5)
+            .width(Length::Fill)
+            .height(Length::FillPortion(1)),
+            vertical_space(Length::Fixed(20_f32)),
+            // text based stats
+            row!(
+                column!(
+                    text("Utilization").size(16),
+                    text(format!("{:.0}%", self.usage.current)).size(24),
+                ),
+                column!(
+                    text("Available").size(16),
+                    text(format!("{:.2} GB", self.available.current)).size(24),
+                ),
+                column!(
+                    text("Used").size(16),
+                    text(format!("{:.2} GB", self.used.current)).size(24),
+                ),
+                column!(
+                    text("Total").size(16),
+                    text(format!("{:.0} GB", self.total)).size(24),
+                ),
             )
-            .into()
+            .spacing(20)
+        )
+        .padding(20)
+        .into()
     }
 }

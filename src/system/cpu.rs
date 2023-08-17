@@ -2,7 +2,9 @@ use std::collections::VecDeque;
 use std::fmt::Display;
 use std::rc::Rc;
 
-use iced::widget::{Button, Column, Container, PickList, Row, Space, Text};
+use iced::widget::{
+    button, column, container, horizontal_space, pick_list, row, text, vertical_space,
+};
 use iced::{theme, Element};
 use iced::{Alignment, Length};
 use regex::Regex;
@@ -12,6 +14,33 @@ use crate::ui::style::button::ComponentSelect;
 use crate::ui::style::container::GraphBox;
 use crate::ui::style::pick_list::PickList as PickListStyle;
 use crate::ui::{chart::LineGraph, Message, Route};
+
+struct ChunkedVec<T> {
+    vec: Vec<T>,
+    chunk_size: usize,
+}
+
+impl<T> ChunkedVec<T> {
+    fn new(vec: Vec<T>, chunk_size: usize) -> Self {
+        ChunkedVec { vec, chunk_size }
+    }
+}
+
+impl<T> Iterator for ChunkedVec<T> {
+    type Item = Vec<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.vec.is_empty() {
+            None
+        } else {
+            Some(
+                self.vec
+                    .drain(..self.chunk_size.min(self.vec.len()))
+                    .collect(),
+            )
+        }
+    }
+}
 
 // possible states for the cpu graphs
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -148,17 +177,17 @@ impl Cpu {
         Self {
             name: String::new(),
             cores: Vec::new(),
-            total_temperature: 0.0,
-            total_frequency: 0.0,
-            total_load: 0.0,
+            total_temperature: 0_f32,
+            total_frequency: 0_f32,
+            total_load: 0_f32,
             total_power: None,
-            maximum_temperature: 0.0,
+            maximum_temperature: 0_f32,
             maximum_power: None,
-            maximum_frequency: 0.0,
-            average_temperature: 0.0,
-            average_frequency: 0.0,
+            maximum_frequency: 0_f32,
+            average_temperature: 0_f32,
+            average_frequency: 0_f32,
             average_power: None,
-            average_load: 0.0,
+            average_load: 0_f32,
             graph_state: GraphState::Utilization,
             power: VecDeque::with_capacity(600),
             power_graph: LineGraph::new((119, 221, 119)),
@@ -299,7 +328,7 @@ impl Cpu {
                 if !metric.is_empty() {
                     metric.iter().last().unwrap().current
                 } else {
-                    0.0
+                    0_f32
                 }
             })
             .sum::<f32>()
@@ -319,7 +348,7 @@ impl Cpu {
                 if !metric.is_empty() {
                     metric.iter().last().unwrap().maximum
                 } else {
-                    0.0
+                    0_f32
                 }
             })
             .sum::<f32>()
@@ -337,10 +366,10 @@ impl Cpu {
                 let metric = metric_selector(thread);
                 let metric_len = metric.len() as f32;
 
-                if metric_len > 0.0 {
+                if metric_len > 0_f32 {
                     metric.iter().map(|v| v.current).sum::<f32>() / metric_len
                 } else {
-                    0.0
+                    0_f32
                 }
             })
             .sum::<f32>()
@@ -349,271 +378,233 @@ impl Cpu {
 
     // build text stats
     fn make_stats(&self, celsius: bool) -> Element<Message> {
-        let mut stats = Row::new() // text stats
-            .spacing(20)
-            .push(
-                Column::new()
-                    .spacing(5)
-                    .push(
-                        Column::new()
-                            .push(Text::new("Cores").size(16))
-                            .push(Text::new(self.core_count.to_string()).size(24)),
-                    )
-                    .push(
-                        Column::new()
-                            .push(Text::new("Logical Processors").size(16))
-                            .push(Text::new(self.logical_processor_count.to_string()).size(24)),
-                    ),
+        let mut stat_items = vec![
+            column!(
+                column!(
+                    text("Cores").size(16),
+                    text(self.core_count.to_string()).size(24),
+                ),
+                column!(
+                    text("Logical Processors").size(16),
+                    text(self.logical_processor_count.to_string()).size(24),
+                ),
             )
-            .push(
-                Column::new()
-                    .spacing(5)
-                    .push(
-                        Column::new()
-                            .push(Text::new("Utilization").size(16))
-                            .push(Text::new(format!("{:.0}%", self.total_load)).size(24)),
-                    )
-                    .push(
-                        Column::new()
-                            .push(Text::new("Average Utilization").size(16))
-                            .push(Text::new(format!("{:.0}%", self.average_load)).size(24)),
-                    ),
+            .spacing(5)
+            .into(),
+            column!(
+                column!(
+                    text("Utilization").size(16),
+                    text(format!("{:.0}%", self.total_load)).size(24),
+                ),
+                column!(
+                    text("Average Utilization").size(16),
+                    text(format!("{:.0}%", self.average_load)).size(24),
+                ),
             )
-            .push(
-                Column::new()
-                    .spacing(5)
-                    .push(Column::new().push(Text::new("Frequency").size(16)).push(
-                        Text::new(format!("{:.2} Ghz", self.total_frequency / 1000.0)).size(24),
-                    ))
-                    .push(
-                        Column::new()
-                            .push(Text::new("Max Frequency").size(16))
-                            .push(
-                                Text::new(format!("{:.2} Ghz", self.maximum_frequency / 1000.0))
-                                    .size(24),
-                            ),
-                    )
-                    .push(
-                        Column::new()
-                            .push(Text::new("Average Frequency").size(16))
-                            .push(
-                                Text::new(format!("{:.2} Ghz", self.average_frequency / 1000.0))
-                                    .size(24),
-                            ),
-                    ),
+            .spacing(5)
+            .into(),
+            column!(
+                column!(
+                    text("Frequency").size(16),
+                    text(format!("{:.2} Ghz", self.total_frequency / 1000_f32)).size(24),
+                ),
+                column!(
+                    text("Max Frequency").size(16),
+                    text(format!("{:.2} Ghz", self.maximum_frequency / 1000_f32)).size(24),
+                ),
+                column!(
+                    text("Average Frequency").size(16),
+                    text(format!("{:.2} Ghz", self.average_frequency / 1000_f32)).size(24),
+                ),
             )
-            .push(
-                Column::new()
-                    .spacing(5)
-                    .push(
-                        Column::new().push(Text::new("Temperature").size(16)).push(
-                            Text::new(if celsius {
-                                format!("{:.0}°C", self.total_temperature)
-                            } else {
-                                format!("{:.0}°F", self.total_temperature * 1.8 + 32.0)
-                            })
-                            .size(24),
-                        ),
-                    )
-                    .push(
-                        Column::new()
-                            .push(Text::new("Max Temperature").size(16))
-                            .push(
-                                Text::new(if celsius {
-                                    format!("{:.0}°C", self.maximum_temperature)
-                                } else {
-                                    format!("{:.0}°F", self.maximum_temperature * 1.8 + 32.0)
-                                })
-                                .size(24),
-                            ),
-                    )
-                    .push(
-                        Column::new()
-                            .push(Text::new("Average Temperature").size(16))
-                            .push(
-                                Text::new(if celsius {
-                                    format!("{:.0}°C", self.average_temperature)
-                                } else {
-                                    format!("{:.0}°F", self.average_temperature * 1.8 + 32.0)
-                                })
-                                .size(24),
-                            ),
-                    ),
-            );
+            .spacing(5)
+            .into(),
+            column!(
+                column!(
+                    text("Temperature").size(16),
+                    text(if celsius {
+                        format!("{:.0}°C", self.total_temperature)
+                    } else {
+                        format!("{:.0}°F", self.total_temperature * 1.8 + 32_f32)
+                    })
+                    .size(24),
+                ),
+                column!(
+                    text("Max Temperature").size(16),
+                    text(if celsius {
+                        format!("{:.0}°C", self.maximum_temperature)
+                    } else {
+                        format!("{:.0}°F", self.maximum_temperature * 1.8 + 32_f32)
+                    })
+                    .size(24),
+                ),
+                column!(
+                    text("Average Temperature").size(16),
+                    text(if celsius {
+                        format!("{:.0}°C", self.average_temperature)
+                    } else {
+                        format!("{:.0}°F", self.average_temperature * 1.8 + 32_f32)
+                    })
+                    .size(24),
+                ),
+            )
+            .spacing(5)
+            .into(),
+        ];
 
         // power is an optional stat, only show if it exists
         if !self.power.is_empty() {
-            stats = stats.push(
-                Column::new()
-                    .spacing(5)
-                    .push(
-                        Column::new()
-                            .push(Text::new("Power Consumption").size(16))
-                            .push(
-                                Text::new(format!("{:.0} Watts", self.total_power.unwrap()))
-                                    .size(24),
-                            ),
-                    )
-                    .push(
-                        Column::new()
-                            .push(Text::new("Max Power Consumption").size(16))
-                            .push(
-                                Text::new(format!("{:.0} Watts", self.maximum_power.unwrap()))
-                                    .size(24),
-                            ),
-                    )
-                    .push(
-                        Column::new()
-                            .push(Text::new("Average Power Consumption").size(16))
-                            .push(
-                                Text::new(format!("{:.0} Watts", self.average_power.unwrap()))
-                                    .size(24),
-                            ),
+            stat_items.push(
+                column!(
+                    column!(
+                        text("Power Consumption").size(16),
+                        text(format!("{:.0} Watts", self.total_power.unwrap())).size(24),
                     ),
+                    column!(
+                        text("Max Power Consumption").size(16),
+                        text(format!("{:.0} Watts", self.maximum_power.unwrap())).size(24),
+                    ),
+                    column!(
+                        text("Average Power Consumption").size(16),
+                        text(format!("{:.0} Watts", self.average_power.unwrap())).size(24),
+                    ),
+                )
+                .spacing(5)
+                .into(),
             )
         }
 
-        stats.into()
+        row(stat_items).spacing(20).into()
     }
 
+    // TODO last line is clipped
     pub(crate) fn view_small(&self, celsius: bool) -> Element<Message> {
-        Button::new(
-            Row::new()
-                .align_items(Alignment::Center)
-                .push(Space::new(Length::Fixed(5.0), Length::Shrink))
-                .push(
-                    Container::new(self.load_graph.view())
-                        .style(theme::Container::Custom(Box::new(GraphBox::new((
-                            0, 255, 255,
-                        )))))
-                        .width(Length::Fixed(70.0))
-                        .height(Length::Fixed(60.0)),
+        button(
+            row!(
+                horizontal_space(Length::Fixed(5_f32)),
+                container(self.load_graph.view())
+                    .style(theme::Container::Custom(Box::new(GraphBox::new((
+                        0, 255, 255,
+                    )))))
+                    .width(Length::Fixed(70_f32))
+                    .height(Length::Fixed(60_f32)),
+                horizontal_space(Length::Fixed(10_f32)),
+                column!(
+                    text("CPU"),
+                    text(&self.name).size(14),
+                    text(if celsius {
+                        format!(
+                            "{:.0}%  {:.2} GHz  ({:.0}°C)",
+                            self.total_load,
+                            self.total_frequency / 1000_f32,
+                            self.total_temperature
+                        )
+                    } else {
+                        format!(
+                            "{:.0}%  {:.2} GHz  ({:.0}°F)",
+                            self.total_load,
+                            self.total_frequency / 1000_f32,
+                            self.total_temperature * 1.8 + 32_f32
+                        )
+                    })
+                    .size(14),
                 )
-                .push(Space::new(Length::Fixed(10.0), Length::Shrink))
-                .push(
-                    Column::new()
-                        .spacing(3)
-                        .push(Text::new("CPU"))
-                        .push(Text::new(&self.name).size(14))
-                        .push(
-                            Text::new(if celsius {
-                                format!(
-                                    "{:.0}%  {:.2} GHz  ({:.0}°C)",
-                                    self.total_load,
-                                    self.total_frequency / 1000.0,
-                                    self.total_temperature
-                                )
-                            } else {
-                                format!(
-                                    "{:.0}%  {:.2} GHz  ({:.0}°F)",
-                                    self.total_load,
-                                    self.total_frequency / 1000.0,
-                                    self.total_temperature * 1.8 + 32.0
-                                )
-                            })
-                            .size(14),
-                        ),
-                ),
+                .spacing(3)
+            )
+            .align_items(Alignment::Center),
         )
         .on_press(Message::Navigate(Route::Cpu))
         .style(theme::Button::Custom(Box::new(ComponentSelect)))
         .width(Length::Fill)
-        .height(Length::Fixed(75.0))
+        .height(Length::Fixed(75_f32))
         .into()
     }
 
     pub(crate) fn view_large(&self, celsius: bool) -> Element<Message> {
         let graph = if self.graph_state == GraphState::Power {
             // single graph for power
-            Container::new(self.power_graph.view())
+            container(self.power_graph.view())
                 .style(theme::Container::Custom(Box::new(GraphBox::new((
                     119, 221, 119,
                 )))))
                 .width(Length::Fill)
                 .height(Length::Fill)
         } else {
-            let thread_count = self.cores.iter().map(|c| c.thread_count).sum::<usize>();
+            let thread_count = self
+                .cores
+                .iter()
+                .map(|core| core.thread_count)
+                .sum::<usize>();
+
             let row_count = calculate_rows(thread_count);
 
             // create the graphs
             let graphs = create_graph_elements(&self.cores, self.graph_state);
 
-            let mut graph_grid = Row::new()
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .spacing(10);
-            let mut column: Column<Message> = Column::new()
-                .spacing(10)
-                .width(Length::FillPortion(1))
-                .height(Length::FillPortion(1));
-            let mut items_in_column = 0;
-
-            // places the graphs into their columns and the columns into the row
-            for graph in graphs {
-                column = column.push(graph);
-                items_in_column += 1;
-
-                if items_in_column == row_count {
-                    graph_grid = graph_grid.push(column);
-                    column = Column::new()
+            // create the columns of graphs
+            let columns: Vec<Element<Message>> = ChunkedVec::new(graphs, row_count)
+                .into_iter()
+                .map(|graphs| {
+                    column(graphs)
                         .spacing(10)
                         .width(Length::FillPortion(1))
-                        .height(Length::FillPortion(1));
-                    items_in_column = 0;
-                }
-            }
+                        .height(Length::FillPortion(1))
+                        .into()
+                })
+                .collect();
 
-            Container::new(graph_grid)
+            container(
+                row(columns)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .spacing(10),
+            )
         };
 
-        Column::new()
-            .padding(20)
-            .push(
-                Row::new() // row for the cpu name and graph type picklist
-                    .align_items(Alignment::Center)
-                    .height(Length::Fixed(30.0))
-                    .push(Text::new("CPU").size(28))
-                    .push(Space::new(Length::Fixed(20.0), Length::Shrink))
-                    .push(
-                        // picklist for graph types
-                        PickList::new(
-                            &GraphState::ALL[..],
-                            Some(self.graph_state),
-                            Message::CpuPickChanged,
-                        )
-                        .style(theme::PickList::Custom(
-                            Rc::new(PickListStyle),
-                            Rc::new(PickListStyle),
-                        ))
-                        .padding(5),
-                    )
-                    .push(Space::new(Length::Fill, Length::Shrink))
-                    .push(Text::new(&self.name)), // name of cpu display
+        column!(
+            // row for the cpu name and graph type picklist
+            row!(
+                text("CPU").size(28),
+                horizontal_space(Length::Fixed(20_f32)),
+                // picklist for graph types
+                pick_list(
+                    &GraphState::ALL[..],
+                    Some(self.graph_state),
+                    Message::CpuPickChanged,
+                )
+                .style(theme::PickList::Custom(
+                    Rc::new(PickListStyle),
+                    Rc::new(PickListStyle),
+                ))
+                .padding(5),
+                horizontal_space(Length::Fill),
+                text(&self.name), // name of cpu display
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
-            .push(
-                Column::new()
-                    .height(Length::Fill)
-                    .spacing(5)
-                    .width(Length::Fill)
-                    .push(
-                        // graph labels
-                        match self.graph_state {
-                            GraphState::Utilization => Text::new("Utilization (0-100%)"),
-                            GraphState::Frequency => Text::new("Core Frequency"),
-                            GraphState::Temperature => Text::new("Temperature"),
-                            GraphState::Power => Text::new(format!(
-                                "Power Consumption (0-{} Watts)",
-                                self.power_graph.maximum_value
-                            )),
-                        }
-                        .size(14),
-                    )
-                    .push(graph), // the graphs
+            .align_items(Alignment::Center)
+            .height(Length::Fixed(30_f32)),
+            vertical_space(Length::Fixed(20_f32)),
+            column!(
+                // graph labels
+                match self.graph_state {
+                    GraphState::Utilization => text("Utilization (0-100%)"),
+                    GraphState::Frequency => text("Core Frequency"),
+                    GraphState::Temperature => text("Temperature"),
+                    GraphState::Power => text(format!(
+                        "Power Consumption (0-{} Watts)",
+                        self.power_graph.maximum_value
+                    )),
+                }
+                .size(14),
+                graph, // the graphs
             )
-            .push(Space::new(Length::Shrink, Length::Fixed(20.0)))
-            .push(self.make_stats(celsius)) // build the last row with text stats
-            .into()
+            .height(Length::Fill)
+            .spacing(5)
+            .width(Length::Fill),
+            vertical_space(Length::Fixed(20_f32)),
+            self.make_stats(celsius) // build the last row with text stats
+        )
+        .padding(20)
+        .into()
     }
 }
 
@@ -656,7 +647,7 @@ fn create_graph_elements(cores: &[CpuCore], graph_state: GraphState) -> Vec<Elem
                 _ => unreachable!(),
             };
 
-            Container::new(graph.view())
+            container(graph.view())
                 .style(theme::Container::Custom(Box::new(GraphBox::new(color))))
                 .width(Length::Fill)
                 .height(Length::Fill)
