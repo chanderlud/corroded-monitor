@@ -477,7 +477,6 @@ impl Cpu {
         row(stat_items).spacing(20).into()
     }
 
-    // TODO last line is clipped
     pub(crate) fn view_small(&self, celsius: bool) -> Element<Message> {
         button(
             row!(
@@ -509,7 +508,7 @@ impl Cpu {
                     })
                     .size(14),
                 )
-                .spacing(3)
+                .spacing(2)
             )
             .align_items(Alignment::Center),
         )

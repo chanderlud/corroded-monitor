@@ -303,7 +303,6 @@ impl Gpu {
     }
 
     // small view of the widget located in the sidebar
-    // TODO last line is clipped
     pub fn view_small(&self, celsius: bool) -> Element<Message> {
         // the entire widget is a button
         Button::new(
@@ -319,7 +318,7 @@ impl Gpu {
                 .push(horizontal_space(Length::Fixed(10_f32)))
                 .push(
                     Column::new()
-                        .spacing(3) // this is the text on the right side of the graph with stats summary
+                        .spacing(2) // this is the text on the right side of the graph with stats summary
                         .push(text(format!("GPU {}", self.index)))
                         .push(text(&self.name).size(14))
                         .push(text(

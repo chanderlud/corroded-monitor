@@ -67,7 +67,6 @@ impl NetworkAdapter {
     }
 
     // small view of the widget located in the sidebar
-    // TODO last line is clipped
     pub fn view_small(&self) -> Element<Message> {
         // the entire widget is a button
         button(
@@ -90,7 +89,7 @@ impl NetworkAdapter {
                     ))
                     .size(14),
                 )
-                .spacing(3)
+                .spacing(2)
             )
             .align_items(Alignment::Center),
         )
