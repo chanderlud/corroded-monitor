@@ -3,6 +3,7 @@ use std::rc::Rc;
 use iced::widget::{
     button, column, container, horizontal_space, pick_list, row, text, vertical_space,
 };
+use iced::alignment::Vertical;
 use iced::{theme, Alignment, Element, Length};
 
 use crate::system::{Data, Hardware};
@@ -163,7 +164,9 @@ impl Storage {
         column!(
             // the title bar
             row!(
-                text(format!("Disk {}", self.index)).size(28),
+                text(format!("Disk {}", self.index))
+                    .size(28)
+                    .vertical_alignment(Vertical::Center),
                 horizontal_space(Length::Fill),
                 text(&self.name),
             )

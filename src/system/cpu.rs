@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use std::fmt::Display;
 use std::rc::Rc;
 
+use iced::alignment::Vertical;
 use iced::widget::{
     button, column, container, horizontal_space, pick_list, row, text, vertical_space,
 };
@@ -563,7 +564,7 @@ impl Cpu {
         column!(
             // row for the cpu name and graph type picklist
             row!(
-                text("CPU").size(28),
+                text("CPU").size(28).vertical_alignment(Vertical::Center),
                 horizontal_space(Length::Fixed(20_f32)),
                 // picklist for graph types
                 pick_list(

@@ -1,5 +1,6 @@
 use iced::widget::{button, column, container, horizontal_space, row, text, vertical_space};
 use iced::{theme, Alignment, Element, Length};
+use iced::alignment::Vertical;
 
 use crate::system::{Data, Hardware};
 use crate::ui::chart::LineGraph;
@@ -105,7 +106,9 @@ impl NetworkAdapter {
         column!(
             // the title bar
             row!(
-                text(format!("Network {}", self.index)).size(28),
+                text(format!("Network {}", self.index))
+                    .vertical_alignment(Vertical::Center)
+                    .size(28),
                 horizontal_space(Length::Fill),
                 text(&self.name)
             )

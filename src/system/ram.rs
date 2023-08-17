@@ -1,5 +1,6 @@
 use iced::widget::{button, column, container, horizontal_space, row, text, vertical_space};
 use iced::{theme, Alignment, Element, Length};
+use iced::alignment::Vertical;
 
 use crate::system::{Data, Hardware};
 use crate::ui::style::button::ComponentSelect;
@@ -85,7 +86,7 @@ impl Ram {
     pub(crate) fn view_large(&self) -> Element<Message> {
         column!(
             // title bar
-            row!(text("RAM").size(28))
+            row!(text("RAM").vertical_alignment(Vertical::Center).size(28))
                 .align_items(Alignment::Center)
                 .height(Length::Fixed(30_f32)),
             vertical_space(Length::Fixed(20_f32)),

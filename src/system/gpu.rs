@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use iced::alignment::Vertical;
 use iced::widget::{
     button, column, container, horizontal_space, pick_list, row, text, vertical_space,
 };
@@ -352,7 +353,7 @@ impl Gpu {
         column!(
             // the title bar
             row!(
-                text("GPU").size(28),
+                text("GPU").vertical_alignment(Vertical::Center).size(28),
                 horizontal_space(Length::Fill),
                 text(&self.name),
             )
