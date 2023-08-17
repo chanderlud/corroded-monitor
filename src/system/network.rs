@@ -133,7 +133,7 @@ impl NetworkAdapter {
             .spacing(5)
             .width(Length::Fill)
             .height(Length::FillPortion(1)),
-            horizontal_space(Length::Fixed(20_f32)),
+            vertical_space(Length::Fixed(20_f32)),
             // text based data
             row!(
                 column!(
