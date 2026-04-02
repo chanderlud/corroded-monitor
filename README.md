@@ -1,7 +1,7 @@
 # Corroded Monitor
 A hardware monitor built on [Libre Hardware Monitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) in Rust.
-Corroded Monitor is currently Windows only as Libre Hardware Monitor is Windows only, however the GUI is cross-platform so 
-support for other operating systems is goal. Learn more at [chanchan.dev](https://chanchan.dev/work/corroded-monitor)
+Corroded Monitor is currently Windows only, as Libre Hardware Monitor is Windows only, the GUI is cross-platform, so 
+support for other operating systems is a goal. Learn more at [chanchan.dev](https://chanchan.dev/work/corroded-monitor).
 
 ![Corroded Monitor CPU Utilization](https://chanchan.dev/images/projects/corroded-monitor/cover.png)
 
